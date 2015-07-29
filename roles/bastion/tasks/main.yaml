@@ -1,0 +1,16 @@
+- name: install apt packages
+  apt: pkg={{ item }} update_cache=yes cache_valid_time=3600
+  sudo: True
+  with_items:
+    - git
+    - python-pip
+    - python-dev
+    - docker
+
+- name: install python packages
+  pip: name={{ item }}
+  sudo: True
+  with_items:
+    - ansible
+    - awscli
+    - boto
