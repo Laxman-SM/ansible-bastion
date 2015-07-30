@@ -2,7 +2,7 @@
 #Create and config the VPC
 - hosts: localhost
   connection: local
-  gather_facts: False
+  #gather_facts: False
   vars_files:
   - group_vars/all
 
@@ -10,14 +10,10 @@
   - name: Include the variables specific to the vpc
     include_vars: envs/{{ environ| default("prod") }}
 
-  # create new VPC
+  # create a new VPC
   - name: Create the VPC
-    local_action:
-      module: ec2_vpc
-      state: present
+    ec2_vpc:
       region: "{{ ec2_region }}"
-      ec2_access_key: "{{ ec2_access_key }}"
-      ec2_secret_key: "{{ ec2_secret_key }}"
       cidr_block: "{{ vpc_cidr_block }}"
       resource_tags: "{{ vpc_resource_tags }}"
       subnets: "{{ vpc_subnets }}"
@@ -35,46 +31,44 @@
 
   # generate VPC security group
   - name: Create the security group for the VPC
-    local_action:
-      module: ec2_group
+    ec2_group:
       name: "{{ vpc_group.name }}"
       description: "{{ vpc_group.desc }}"
       vpc_id: "{{ vpc.vpc_id }}"
       region: "{{ ec2_region }}"
-      ec2_access_key: "{{ ec2_access_key }}"
-      ec2_secret_key: "{{ ec2_secret_key }}"
       rules: "{{ vpc_group.rules }}"
 
   # generate ec2 key pair and store generated private key into file
-  - name: generate ec2 key
+  - name: Generate ec2 key
     ec2_key:
       region: "{{ ec2_region }}"
-      name: bastion-keypair
+      name: "{{ vpc_instance_keypair }}"
     register: keypair
-
-  - name: write generated key to file
+  # !!! Keep local file safe on your local machine only
+  - name: write generated key to local file
     copy:
       dest: keys/bastion-key.pem
       content: "{{ keypair.key.private_key }}"
       mode: 0600
     when: keypair.changed
 
-  # create specified instances in avaiability zone/s
-  - name: Create the Instances for this vpc
+  # create specified Bastion instances in multiple AZ
+  - name: Create the Instances for created VPC
     ec2:
       region: "{{ ec2_region }}"
       ec2_access_key: "{{ ec2_access_key }}"
       ec2_secret_key: "{{ ec2_secret_key }}"
-      keypair: "{{ item.keypair }}"
-      instance_type: "{{ item.instance_type }}"
-      image: "{{ item.image }}"
-      group: "{{ item.group }}"
+      keypair: "{{ vpc_instance_keypair }}"
+      instance_type: "{{ vpc_instance_type }}"
+      image: "{{ vpc_instance_image }}"
+      instance_tags: "{{ vpc_instance_tags }}"
+      group: "{{ vpc_group.name }}"
       vpc_subnet_id: "{{ subnet_maps[item.subnet] }}"
-      wait: true
-      instance_tags: "{{ item.instance_tags }}"
-      assign_public_ip: "{{ item.assign_public_ip }}"
       exact_count: "{{ item.exact_count }}"
       count_tag: "{{ item.count_tag }}"
+      assign_public_ip: yes
+      monitoring: true
+      wait: true
     register: ec2
     with_items: vpc_instances
 
@@ -82,19 +76,18 @@
     set_fact: instances="{{ ec2.results | map(attribute='instances') | list}}"
 
   - name: Add new instance to host group
-    add_host: hostname={{ item.public_ip }} groupname=launched
+    add_host: hostname={{ item.public_dns_name }} groupname=launched
     with_flattened: instances
-
-  - name: print all hosts
-    debug: var=hostvars
+    when: item.public_dns_name is defined
 
   - name: Wait for SSH to come up
     wait_for: host={{ item.public_dns_name }} port=22 delay=60 timeout=320 state=started
     with_flattened: instances
+    when: item.public_dns_name is defined
 
   # configure bastion instances
 - name: Configure created Instances
   hosts: launched
-  gather_facts: True
+  sudo: True
   roles:
     - bastion
