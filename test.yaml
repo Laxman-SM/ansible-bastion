@@ -1,0 +1,17 @@
+---
+#Create and config the VPC
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    ids:
+      - "i-c6cf956a"
+      - "i-297bc5fb"
+  tasks:
+
+
+  - add_host: hostname="{{ item.value[0] }}" group=test
+    when: item.key in {{ids}}
+    with_dict: groups
+
+  - debug: var=groups.test

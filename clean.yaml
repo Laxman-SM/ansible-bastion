@@ -1,0 +1,56 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  vars_files:
+  - group_vars/all.yaml
+  - envs/{{ environ| default("production") }}.yaml
+
+  tasks:
+  - name: remove autoscale groups for bastion
+    ec2_asg:
+      region: "{{ ec2_region }}"
+      name: "{{ item.name }}"
+      launch_config_name: "{{ item.lc_name }}"
+      state: absent
+    with_items:
+      - { name: "{{ bastion_asg_name }}", lc_name: "{{ bastion_lc_name }}" }
+
+  - name: remove launch configurations for bastion
+    ec2_lc:
+      region: "{{ ec2_region }}"
+      name: "{{ item.name }}"
+      instance_type: "{{ item.type }}"
+      state: absent
+    with_items:
+      - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
+
+  # find vpc id
+  - name: find vpc id
+    ec2_vpc:
+      region: "{{ ec2_region }}"
+      cidr_block: "{{ vpc_cidr_block }}"
+      resource_tags: "{{ vpc_resource_tags }}"
+      internet_gateway: "{{ vpc_internet_gateway|string }}"
+      subnets: "{{ vpc_subnets }}"
+      wait: true
+    register: vpc
+
+  - name: delete all vpc security groups
+    ec2_group:
+      region: "{{ ec2_region }}"
+      name: "{{ item.name }}"
+      description: "{{ item.description }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      state: absent
+    with_items:
+      - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
+
+  - name: delete VPC
+    ec2_vpc:
+      region: "{{ ec2_region }}"
+      cidr_block: "{{ vpc_cidr_block }}"
+      resource_tags: "{{ vpc_resource_tags }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      state: absent

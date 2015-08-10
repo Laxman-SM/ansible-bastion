@@ -1,0 +1,47 @@
+vpc_cidr_block: 10.0.0.0/16
+
+vpc_resource_tags: { "Name": "bastion", "group": "gaia", "env": "production"}
+
+vpc_subnets:
+  # public subnets
+  - cidr: 10.0.1.0/24
+    az: "{{ ec2_region_az1 }}"
+    resource_tags: { "Name": "bastion-1", "env": "production", "group": "gaia", "tier": "public"}
+  - cidr: 10.0.2.0/24
+    az: "{{ ec2_region_az2 }}"
+    resource_tags: { "Name": "bastion-2", "env": "production", "group": "gaia", "tier": "public"}
+
+vpc_internet_gateway: "yes"
+
+vpc_route_tables:
+  - subnets:
+     - 10.0.1.0/24
+     - 10.0.2.0/24
+    routes:
+      - dest: 0.0.0.0/0
+        gw: igw
+
+# Bastion variables
+
+bastion_security_group:
+  name: bastion-sg-prod
+  desc: the security group for the bastion vpc
+  rules:
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+
+bastion_keypair_name: bastion-keypair
+bastion_keypair_file: bastion-key.pem
+
+bastion_instance_type: m3.large
+bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
+bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "production", "type": "bastion-vm" ]
+
+bastion_lc_name: bastion-lc-prod
+bastion_asg_name: bastion-asg-prod
+bastion_health_check_period: 60
+bastion_cluster_size: 2
+bastion_min_cluster_size: 2
+bastion_max_cluster_size: 4
