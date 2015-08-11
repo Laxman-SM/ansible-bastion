@@ -20,6 +20,7 @@ vpc_route_tables:
     routes:
       - dest: 0.0.0.0/0
         gw: igw
+    resource_tags: { "Name": "bastion-rt", "env": "production", "group": "gaia" }
 
 # Bastion variables
 

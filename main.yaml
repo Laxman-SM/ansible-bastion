@@ -21,9 +21,9 @@
       register: vpc
 
     # get public subnets
-    - name: get vpc private subnets
+    - name: get vpc public subnets
       set_fact:
-          vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"
+        vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"
 
     # generate VPC security group
     - name: Create the security group for the VPC
@@ -91,6 +91,9 @@
         vpc_zone_identifier: "{{ vpc_public_subnets }}"
         wait_for_instances: yes
       register: asg_out
+
+    - name: refresh data from ec2
+      ec2_facts:
 
     - name: Add new instance to host group
       add_host: hostname="{{ item.value[0] }}" groupname=launched
