@@ -46,7 +46,7 @@ export AWS_DEFAULT_AZ4='us-east-1e'
 
 # Ansible modules from Ansible 2.0 branch
 
-We use additional Ansible AWS modules `ec2_ami_find` and `ec2_vpc_peering` from Ansible 2.0, that are not available in Ansible 1.9x.
+We use additional Ansible AWS module `ec2_ami_find` from Ansible 2.0, that are not available in Ansible 1.9x.
 
 # create new Bastion environment
 
