@@ -56,5 +56,5 @@ To invoke Ansible playbook with different configuration (`myenv.yaml`) use the f
 ```
 cp envs/production.yaml envs/myenv.yaml
 vim envs/myenv.yaml
-ansible-playbook main.yaml --extra-vars "env=myenv"
+ansible-playbook main.yaml --extra-vars "environ=myenv"
 ```

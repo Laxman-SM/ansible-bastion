@@ -5,7 +5,7 @@
   gather_facts: False
   vars_files:
   - group_vars/all.yaml
-  - envs/{{ environ| default("production") }}.yaml
+  - envs/{{ environ | default("production") }}.yaml
 
   tasks:
     # create a new VPC
