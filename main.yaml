@@ -92,13 +92,17 @@
         wait_for_instances: yes
       register: asg_out
 
-    - name: refresh data from ec2
-      ec2_facts:
+    - name: describe ec2 instances from autoscale group
+      local_action: command aws ec2 describe-instances --instance-ids {{ item }}
+      with_items: "{{ asg_out.instances }}"
+      register: ec2_describe_result
 
-    - name: Add new instance to host group
-      add_host: hostname="{{ item.value[0] }}" groupname=launched
-      when: item.key in asg_out.instances
-      with_dict: groups
+    - name: create a new hosts group with public ip for launched instances
+      add_host: >
+        hostname="{{(item.stdout | from_json).Reservations[0].Instances[0].PublicIpAddress}}"
+        groupname=launched
+        ansible_ssh_private_key_file=keys/{{bastion_keypair_file}}
+      with_items: "{{ec2_describe_result.results}}"
 
     - name: Wait for SSH to come up
       wait_for: host="{{item}}" port=22 delay=60 timeout=320 state=started

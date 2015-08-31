@@ -5,13 +5,27 @@
   gather_facts: False
   vars:
     ids:
-      - "i-c6cf956a"
-      - "i-297bc5fb"
+      - "i-f36f9653"
+      - "i-2c7e69fe"
   tasks:
 
+  - name: get insance details
+    local_action: command aws ec2 describe-instances --instance-ids {{ item }}
+    with_items: "{{ ids }}"
+    register: ec2_describe_result
 
-  - add_host: hostname="{{ item.value[0] }}" group=test
-    when: item.key in {{ids}}
-    with_dict: groups
+  - name: collect ips
+    add_host: hostname="{{(item.stdout | from_json).Reservations[0].Instances[0].PublicIpAddress}}" group=test
+    with_items: "{{ec2_describe_result.results}}"
+
 
   - debug: var=groups.test
+
+
+  # - name: make a list of ips
+  #   set_fact: ips="{{ ec2_describe_result.results | map(attribute='ansible_facts.bastion_ip') | list }}"
+
+  # - add_host: hostname="{{ item }}" group=test
+  #   with: ips
+
+  # - debug: var=groups.test
