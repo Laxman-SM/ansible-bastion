@@ -1,0 +1,28 @@
+docker_registry_security_group:
+  name: docker-registry-sg-prod
+  altname: docker_registry_sg_prod
+  desc: the security group for the docker-registry vpc
+  rules:
+    - proto: tcp
+      from_port: 5000
+      to_port: 5000
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: "{{ vpc_cidr_block }}"
+
+docker_registry_keypair_name: docker-registry-keypair-prod
+docker_registry_keypair_file: docker-registry-key-prod.pem
+
+docker_registry_channel: alpha
+
+docker_registry_asg_name: docker-registry-asg-prod
+docker_registry_lc_name: docker-registry-lc-prod
+docker_registry_instance_type: m3.large     # 2 vCPU, 7.5GB RAM, 1x32 SSD
+
+docker_registry_instance_tags:
+  Name: docker-registry
+  group: gaia
+  type: docker-registry-vm
+  env: production
+  decription: Docker Registry Node

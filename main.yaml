@@ -8,17 +8,23 @@
   - group_vars/all.yaml
   - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
   - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
+  - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
   roles:
     # generate bastion key pair
     - role: keygen
       keypair_name: "{{ bastion_keypair_name }}"
       keypair_file: "{{ bastion_keypair_file }}"
+    # generate docker-registry key pair
+    - role: keygen
+      keypair_name: "{{ docker_registry_keypair_name }}"
+      keypair_file: "{{ docker_registry_keypair_file }}"
 
     # create a new VPC
     - role: vpc
-
     # create bastion cluster
     - role: bastion
+    # create docker registry
+    - role: docker_registry
 
   # configure bastion instances
 - name: Configure created bastion instances

@@ -1,0 +1,51 @@
+- name: Create the security group for the CoreOS cluster
+  ec2_group:
+    name: "{{ docker_registry_security_group.name }}"
+    description: "{{ docker_registry_security_group.desc }}"
+    vpc_id: "{{ vpc.vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules: "{{ docker_registry_security_group.rules }}"
+  register: docker_registry_sg
+
+# search for latest CoreOS AMI from alpha/beta/stable channel
+- name: search for the latest CoreOS AMI image from "{{ docker_registry_channel }}"
+  ec2_ami_find:
+    region: "{{ ec2_region }}"
+    name: "CoreOS-{{docker_registry_channel}}-*"
+    virtualization_type: hvm
+    sort: name
+    sort_order: descending
+    sort_end: 1
+    no_result_action: fail
+  register: find_out
+
+- name: get CoreOS AMI
+  set_fact:
+    coreos_ami: "{{ find_out.results[0] }}"
+
+# generate user-data from template
+- name: create template
+  template: src='user-data.j2' dest='/tmp/user-data.txt'
+- name: load user-data content
+  set_fact:
+    user_data: "{{ lookup('file', '/tmp/user-data.txt') }}"
+
+- debug: var=vpc.subnets
+- debug: var=vpc_public_subnets
+
+# create a docker registry in each availability zone
+- ec2:
+    region: "{{ ec2_region }}"
+    key_name: "{{ docker_registry_keypair_name }}"
+    image: "{{ coreos_ami.ami_id }}"
+    group_id: "{{ docker_registry_sg.group_id }}"
+    instance_type: "{{ docker_registry_instance_type }}"
+    wait: yes
+    count: 1
+    vpc_subnet_id: "{{ item.id }}"
+    zone: "{{ item.az }}"
+    instance_tags: "{{ docker_registry_instance_tags }}"
+    monitoring: yes
+    user_data: "{{ user_data }}"
+  register: ec2_out
+  with_items: "{{ vpc_public_subnets_full }}"
