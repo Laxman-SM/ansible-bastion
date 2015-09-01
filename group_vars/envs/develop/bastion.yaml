@@ -18,6 +18,7 @@ bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "develop", "
 
 bastion_lc_name: bastion-lc-dev
 bastion_asg_name: bastion-asg-dev
+bastion_asg_group_name: tag_aws_autoscaling_groupName_bastion_asg_dev
 bastion_health_check_period: 60
 bastion_cluster_size: 2
 bastion_min_cluster_size: 2

@@ -1,5 +1,5 @@
 ---
-#Create and config the VPC
+# Create Bastion VPC and autoscale groups
 - name: Provision VPC and machines
   hosts: localhost
   connection: local
@@ -21,14 +21,7 @@
 
     # create a new VPC
     - role: vpc
-    # create bastion cluster
-    - role: bastion
+    # create bastion EC2 autoscale group
+    - role: bastion_asg
     # create docker registry
     - role: docker_registry
-
-  # configure bastion instances
-- name: Configure created bastion instances
-  hosts: launched_bastion
-  sudo: True
-  roles:
-    - role: bastion_configure
