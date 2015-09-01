@@ -1,0 +1,24 @@
+# Bastion variables
+
+bastion_security_group:
+  name: bastion-sg-dev
+  desc: the security group for the bastion vpc
+  rules:
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+
+bastion_keypair_name: bastion-keypair-dev
+bastion_keypair_file: bastion-key-dev.pem
+
+bastion_instance_type: t2.micro
+bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
+bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "develop", "type": "bastion-vm" ]
+
+bastion_lc_name: bastion-lc-dev
+bastion_asg_name: bastion-asg-dev
+bastion_health_check_period: 60
+bastion_cluster_size: 2
+bastion_min_cluster_size: 2
+bastion_max_cluster_size: 4

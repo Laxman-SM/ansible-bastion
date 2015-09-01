@@ -5,7 +5,8 @@
   gather_facts: False
   vars_files:
   - group_vars/all.yaml
-  - envs/{{ environ| default("production") }}.yaml
+  - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
+  - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
 
   tasks:
   - name: remove autoscale groups for bastion

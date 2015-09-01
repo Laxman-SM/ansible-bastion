@@ -1,0 +1,16 @@
+# create a new VPC
+- name: Create the VPC
+  ec2_vpc:
+    region: "{{ ec2_region }}"
+    cidr_block: "{{ vpc_cidr_block }}"
+    resource_tags: "{{ vpc_resource_tags }}"
+    subnets: "{{ vpc_subnets }}"
+    internet_gateway: "{{ vpc_internet_gateway|string }}"
+    route_tables: "{{ vpc_route_tables }}"
+    wait: true
+  register: vpc
+
+# get public subnets
+- name: get vpc public subnets
+  set_fact:
+    vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"

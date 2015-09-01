@@ -21,28 +21,3 @@ vpc_route_tables:
       - dest: 0.0.0.0/0
         gw: igw
     resource_tags: { "Name": "bastion-rt", "env": "production", "group": "gaia" }
-
-# Bastion variables
-
-bastion_security_group:
-  name: bastion-sg-prod
-  desc: the security group for the bastion vpc
-  rules:
-    - proto: tcp
-      from_port: 22
-      to_port: 22
-      cidr_ip: 0.0.0.0/0
-
-bastion_keypair_name: bastion-keypair-prod
-bastion_keypair_file: bastion-key-prod.pem
-
-bastion_instance_type: m3.large
-bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
-bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "production", "type": "bastion-vm" ]
-
-bastion_lc_name: bastion-lc-prod
-bastion_asg_name: bastion-asg-prod
-bastion_health_check_period: 60
-bastion_cluster_size: 2
-bastion_min_cluster_size: 2
-bastion_max_cluster_size: 4

@@ -1,14 +1,68 @@
-- name: install apt packages
-  apt: pkg={{ item }} update_cache=yes cache_valid_time=3600
-  with_items:
-    - git
-    - python-pip
-    - python-dev
-    - docker
+# generate VPC security group
+- name: Create the security group for the VPC
+  ec2_group:
+    name: "{{ bastion_security_group.name }}"
+    description: "{{ bastion_security_group.desc }}"
+    vpc_id: "{{ vpc.vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules: "{{ bastion_security_group.rules }}"
+  register: bastion_sg
 
-- name: install python packages
-  pip: name={{ item }}
-  with_items:
-    - ansible
-    - awscli
-    - boto
+# search for latest Ubintu LTS image
+- name: search for the latest Ubuntu server AMI image
+  ec2_ami_find:
+    region: "{{ ec2_region }}"
+    name: "{{ bastion_image_name }}"
+    virtualization_type: hvm
+    sort: name
+    sort_order: descending
+    sort_end: 1
+    no_result_action: fail
+  register: find_out
+
+- name: save Ubuntu AMI
+  set_fact:
+    ubuntu_ami: "{{ find_out.results[0] }}"
+
+# create bastion launch configuration
+- name: create bastion launch configuration
+  ec2_lc:
+    name: "{{ bastion_lc_name }}"
+    region: "{{ ec2_region }}"
+    key_name: "{{ bastion_keypair_name }}"
+    image_id: "{{ ubuntu_ami.ami_id }}"
+    security_groups: ["{{ bastion_sg.group_id }}"]
+    instance_type: "{{ bastion_instance_type }}"
+    assign_public_ip: yes
+    instance_monitoring: yes
+
+# create bastion autoscale group
+- name: create bastion autoscale group
+  ec2_asg:
+    name: "{{ bastion_asg_name }}"
+    region: "{{ ec2_region }}"
+    launch_config_name: "{{ bastion_lc_name }}"
+    health_check_period: "{{ bastion_health_check_period }}"
+    desired_capacity: "{{ bastion_cluster_size }}"
+    min_size: "{{ bastion_min_cluster_size }}"
+    max_size: "{{ bastion_max_cluster_size }}"
+    tags: "{{ bastion_instance_tags }}"
+    vpc_zone_identifier: "{{ vpc_public_subnets }}"
+    wait_for_instances: yes
+  register: asg_out
+
+- name: describe ec2 instances from autoscale group
+  local_action: command aws ec2 describe-instances --instance-ids {{ item }} --output json
+  with_items: "{{ asg_out.instances }}"
+  register: ec2_describe_result
+
+- name: create a new hosts group with public ip for launched instances
+  add_host: >
+    hostname="{{(item.stdout | from_json).Reservations[0].Instances[0].PublicIpAddress}}"
+    groupname=launched_bastion
+    ansible_ssh_private_key_file=keys/{{bastion_keypair_file}}
+  with_items: "{{ec2_describe_result.results}}"
+
+- name: Wait for SSH to come up
+  wait_for: host="{{item}}" port=22 delay=60 timeout=320 state=started
+  with_items: groups.launched_bastion
