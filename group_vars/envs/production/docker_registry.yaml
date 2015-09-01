@@ -15,8 +15,6 @@ docker_registry_keypair_file: docker-registry-key-prod.pem
 
 docker_registry_channel: alpha
 
-docker_registry_asg_name: docker-registry-asg-prod
-docker_registry_lc_name: docker-registry-lc-prod
 docker_registry_instance_type: m3.large     # 2 vCPU, 7.5GB RAM, 1x32 SSD
 
 docker_registry_instance_tags:

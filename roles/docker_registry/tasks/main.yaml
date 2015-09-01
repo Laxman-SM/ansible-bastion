@@ -30,9 +30,6 @@
   set_fact:
     user_data: "{{ lookup('file', '/tmp/user-data.txt') }}"
 
-- debug: var=vpc.subnets
-- debug: var=vpc_public_subnets
-
 # create a docker registry in each availability zone
 - ec2:
     region: "{{ ec2_region }}"
