@@ -29,7 +29,7 @@
 
   - name: get list of docker registries to remove
     add_host: hostname="{{ item }}" groupname=docker_registry_removal
-    with_items: "{{ groups['security_group_'+docker_registry_security_group.altname] }}"
+    with_items: "{{ groups['security_group_'+docker_registry_security_group.name] }}"
 
 # must execute on custom host group, since hosts: doesn't support supplying group name via variable
 # security groups must not be deleted yet

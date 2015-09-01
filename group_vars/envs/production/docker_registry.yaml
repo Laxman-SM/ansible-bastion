@@ -1,6 +1,5 @@
 docker_registry_security_group:
-  name: docker-registry-sg-prod
-  altname: docker_registry_sg_prod
+  name: docker_registry_sg_prod
   desc: the security group for the docker-registry vpc
   rules:
     - proto: tcp
