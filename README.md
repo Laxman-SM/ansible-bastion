@@ -56,8 +56,11 @@ To invoke Ansible playbook with different configuration (`myenv.yaml`) use the f
 ```
 cp envs/production.yaml envs/myenv.yaml
 vim envs/myenv.yaml
-ansible-playbook --extra-vars "environ=myenv" main.yaml
+ansible-playbook --extra-vars "environ=myenv" main_setup.yaml
+ansible-playbook --extra-vars "environ=myenv" main_config.yaml
 ```
+
+**Note**: we use 2 Ansible playbooks to discover dynamic inventory, created in first book, in second playbook. You can use `./main.sh myenv` shell script with parameter.
 
 to cleanup previously created environment, run the following code
 ```
