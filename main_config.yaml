@@ -10,13 +10,13 @@
   - name: create a new hosts group with public ip for launched instances
     add_host: >
       hostname="{{item}}"
-      groupname=launched
+      groupname=launched_bastion
       ansible_ssh_private_key_file=keys/{{bastion_keypair_file}}
     with_items: groups.{{bastion_asg_group_name}}
 
   - name: Wait for SSH to come up
     wait_for: host="{{item}}" port=22 delay=60 timeout=320 state=started
-    with_items: groups.launched
+    with_items: groups.launched_bastion
 
 # configure bastion instances
 - name: Configure created bastion instances
