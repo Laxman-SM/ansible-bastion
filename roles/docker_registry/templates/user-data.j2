@@ -5,26 +5,11 @@ coreos:
   units:
   - name: docker.service
     drop-ins:
-    - name: 50-mk-docker-dns-opts.conf
-      command: start
+    - name: 50-mk-docker.conf
       content: |
-        [Unit]
-        Description=Docker Daemon
         [Service]
         Restart=always
         Restart=on-failure
-        ExecStart=/usr/lib/coreos/dockerd --daemon --host=fd:// $DOCKER_OPTS $DOCKER_OPT_BIP $DOCKER_OPT_MTU $DOCKER_OPT_IPMASQ
-  - name: docker-tcp.socket
-    command: start
-    enable: true
-    content: |
-      [Unit]
-      Description=Docker Socket for the API
-      [Socket]
-      ListenStream=2375
-      Service=docker.service
-      BindIPv6Only=both
-      [Install]
-      WantedBy=sockets.target
+      command: start
 
 # {{ ansible_managed }}

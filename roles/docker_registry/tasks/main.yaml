@@ -45,4 +45,4 @@
     monitoring: yes
     user_data: "{{ user_data }}"
   register: ec2_out
-  with_items: "{{ vpc_public_subnets_full }}"
+  with_items: "{{ vpc_private_subnets_full }}"

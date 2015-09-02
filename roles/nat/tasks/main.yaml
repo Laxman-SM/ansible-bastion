@@ -1,0 +1,58 @@
+- name: search for the latest NAT AMI image
+  ec2_ami_find:
+    region: "{{ ec2_region }}"
+    name: "amzn-ami-vpc-nat-hvm-*"
+    sort: name
+    sort_order: descending
+    sort_end: 1
+    no_result_action: fail
+  register: find_out
+
+- name: get NAT AMI
+  set_fact:
+    nat_ami: "{{ find_out.results[0] }}"
+
+- name: Create the NAT security group
+  ec2_group:
+    name: "{{ nat_security_group.name }}"
+    description: "{{ nat_security_group.desc }}"
+    vpc_id: "{{ vpc.vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules: "{{ nat_security_group.rules }}"
+  register: nat_sg
+
+# each AZ should have its own NAT
+- name: launch NAT instance in 1st AZ
+  ec2:
+    region: "{{ ec2_region }}"
+    keypair: "{{ nat_keypair_name }}"
+    zone: "{{ vpc_public_subnets_full[0].az }}"
+    image: "{{ nat_ami.ami_id }}"
+    group_id: "{{ nat_sg.group_id }}"
+    instance_type: "{{ nat_instance_type }}"
+    instance_tags: "{{ nat_instance_tags }}"
+    vpc_subnet_id: "{{ vpc_public_subnets_full[0].id }}"
+    assign_public_ip: yes
+    source_dest_check: no
+    wait: yes
+  register: nat_out
+
+- name: update vpc routing tables
+  ec2_vpc:
+    region: "{{ ec2_region }}"
+    cidr_block: "{{ vpc_cidr_block }}"
+    resource_tags: "{{ vpc_resource_tags }}"
+    internet_gateway: "{{ vpc_internet_gateway|string }}"
+    subnets: "{{ vpc.subnets }}"
+    route_tables:
+      - subnets: "{{ vpc.subnets | get_subnets('tier', 'public', 'cidr') }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gw: igw
+        resource_tags: "{{ vpc_route_tables_tags }}"
+      - subnets: "{{ vpc.subnets | get_subnets('tier', 'private', 'cidr') }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gw: "{{ nat_out.instance_ids[0] }}"
+        resource_tags: "{{ vpc_route_tables_tags }}"
+  register: ec2_vpc_out

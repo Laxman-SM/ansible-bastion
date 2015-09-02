@@ -7,6 +7,7 @@
   vars_files:
   - group_vars/all.yaml
   - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
+  - group_vars/envs/{{ environ | default("production") }}/nat.yaml
   - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
   - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
   roles:
@@ -14,6 +15,10 @@
     - role: keygen
       keypair_name: "{{ bastion_keypair_name }}"
       keypair_file: "{{ bastion_keypair_file }}"
+    # generate nat key pair
+    - role: keygen
+      keypair_name: "{{ nat_keypair_name }}"
+      keypair_file: "{{ nat_keypair_file }}"
     # generate docker-registry key pair
     - role: keygen
       keypair_name: "{{ docker_registry_keypair_name }}"
@@ -21,6 +26,8 @@
 
     # create a new VPC
     - role: vpc
+    # create NAT to give internet access to instances with private IP
+    - role: nat
     # create bastion EC2 autoscale group
     - role: bastion_asg
     # create docker registry

@@ -6,7 +6,6 @@
     resource_tags: "{{ vpc_resource_tags }}"
     subnets: "{{ vpc_subnets }}"
     internet_gateway: "{{ vpc_internet_gateway|string }}"
-    route_tables: "{{ vpc_route_tables }}"
     wait: true
   register: vpc
 
@@ -15,3 +14,4 @@
   set_fact:
     vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"
     vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
+    vpc_private_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'private') }}"

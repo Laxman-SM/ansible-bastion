@@ -17,9 +17,4 @@ docker_registry_channel: alpha
 
 docker_registry_instance_type: m3.large     # 2 vCPU, 7.5GB RAM, 1x32 SSD
 
-docker_registry_instance_tags:
-  Name: docker-registry
-  group: gaia
-  type: docker-registry-vm
-  env: develop
-  decription: Docker Registry Node
+docker_registry_instance_tags: { "Name": "docker-registry", "env": "develop", "group": "gaia", "type": "docker-registry-vm", "decription": "Docker Registry Node" }

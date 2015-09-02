@@ -1,0 +1,39 @@
+# nat - parameters
+nat_keypair_name: bastion-nat-keypair-dev
+nat_keypair_file: bastion-nat-key-dev.pem
+nat_instance_type: "t2.small"
+nat_instance_tags: { "Name": "Bastion_NAT", "env": "develop", "group": "gaia" }
+
+nat_security_group:
+  name: bastion_nat_sg_dev
+  desc: the NAT security group for bastion
+  rules:
+    - proto: tcp
+      from_port: 80
+      to_port: 80
+      cidr_ip: "{{ vpc_cidr_block }}"
+    - proto: tcp
+      from_port: 443
+      to_port: 443
+      cidr_ip: "{{ vpc_cidr_block }}"
+    - proto: udp
+      from_port: 123
+      to_port: 123
+      cidr_ip: "{{ vpc_cidr_block }}"
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: "{{ vpc_cidr_block }}"
+  rules_egress:
+    - proto: tcp
+      from_port: 80
+      to_port: 80
+      cidr_ip: 0.0.0.0/0
+    - proto: tcp
+      from_port: 443
+      to_port: 443
+      cidr_ip: 0.0.0.0/0
+    - proto: udp
+      from_port: 123
+      to_port: 123
+      cidr_ip: 0.0.0.0/0

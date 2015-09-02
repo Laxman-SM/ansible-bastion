@@ -1,10 +1,27 @@
 ---
+- name: Find NAT instances and terminate them
+  hosts: tag_Name_Bastion_NAT:&tag_env_{{ environ | default("production") }}
+  gather_facts: False
+  vars_files:
+  - group_vars/all.yaml
+  roles:
+    - terminate
+
+- name: Find docker registries and terminate them
+  hosts: tag_Name_docker_registry:&tag_env_{{ environ | default("production") }}
+  gather_facts: False
+  vars_files:
+  - group_vars/all.yaml
+  roles:
+    - terminate
 
 - hosts: localhost
   connection: local
   gather_facts: False
   vars_files:
   - group_vars/all.yaml
+  - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
+  - group_vars/envs/{{ environ | default("production") }}/nat.yaml
   - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
   - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
   tasks:
@@ -27,37 +44,6 @@
     with_items:
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
 
-  - name: get list of docker registries to remove
-    add_host: hostname="{{ item }}" groupname=docker_registry_removal
-    with_items: "{{ groups['security_group_'+docker_registry_security_group.name] }}"
-
-# must execute on custom host group, since hosts: doesn't support supplying group name via variable
-# security groups must not be deleted yet
-- name: remove docker registry machines
-  hosts: docker_registry_removal
-  connection: local
-  gather_facts: False
-  vars_files:
-  - group_vars/all.yaml
-  tasks:
-  - name: Terminate docker registries
-    local_action:
-        module: ec2
-        state: absent
-        region: "{{ ec2_region }}"
-        instance_ids: "{{ec2_id}}"
-        wait: true
-
-- name: remove VPC
-  hosts: localhost
-  connection: local
-  gather_facts: False
-  vars_files:
-  - group_vars/all.yaml
-  - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
-  - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
-  - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
-  tasks:
   # find vpc id
   - name: find vpc id
     ec2_vpc:
@@ -77,6 +63,7 @@
       vpc_id: "{{ vpc.vpc_id }}"
       state: absent
     with_items:
+      - { name: "{{ nat_security_group.name }}" , description: "{{ nat_security_group.desc }}"}
       - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
       - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
 
