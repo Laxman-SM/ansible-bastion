@@ -55,6 +55,33 @@
       wait: true
     register: vpc
 
+  # delete DNS zone
+  - route53:
+      command: get
+      zone: "{{ vpc_dns_zone }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      private_zone: True
+      record: "docker-registry.{{ vpc_dns_zone }}"
+      type: A
+    register: rec
+  - name: delete DNS records
+    route53:
+      command: delete
+      zone: "{{ vpc_dns_zone }}"
+      vpc_id: "{{ vpc.vpc_id }}"
+      private_zone: True
+      record: "{{ rec.set.record }}"
+      ttl: "{{ rec.set.ttl }}"
+      type: "{{ rec.set.type }}"
+      value: "{{ rec.set.value }}"
+  - name: delete DNS zone
+    route53_zone:
+      vpc_id: "{{ vpc.vpc_id }}"
+      vpc_region: "{{ ec2_region }}"
+      zone: "{{ vpc_dns_zone }}"
+      state: absent
+
+  # delete security groups
   - name: delete all security groups
     ec2_group:
       region: "{{ ec2_region }}"
@@ -67,6 +94,7 @@
       - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
       - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
 
+  # delete VPC
   - name: delete VPC
     ec2_vpc:
       region: "{{ ec2_region }}"

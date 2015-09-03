@@ -11,5 +11,43 @@ coreos:
         Restart=always
         Restart=on-failure
       command: start
+  - name: docker_registry.service
+    command: start
+    content: |
+      [Unit]
+      Description=Docker Registry V1 (mirror)
+      Documentation=https://github.com/docker/docker-registry
+      # Dependency ordering
+      After=docker.service
+      Requires=docker.service
+      [Service]
+      # Let processes take awhile to start up (for first run Docker containers)
+      # Large start timeout is to allow for pulling down Docker images from Registry
+      TimeoutStartSec=10min
+      TimeoutStopSec=15
+      # Change killmode from "control-group" to "none" to let Docker remove
+      # work correctly.
+      KillMode=none
+      # Restart policy
+      Restart=on-failure
+      RestartSec=10s
+      # Pre-start and Start
+      ## Directives with "=-" are allowed to fail without consequence
+      ExecStartPre=-/bin/mkdir /docker-cache
+      ExecStartPre=-/usr/bin/docker kill docker-registry
+      ExecStartPre=-/usr/bin/docker rm docker-registry
+      ExecStartPre=/usr/bin/docker pull registry:0.9.1
+      ExecStart=/usr/bin/docker run \
+      --name docker-registry \
+      -v /docker-cache:/docker-cache \
+      -e STORAGE_PATH=/docker-cache \
+      -e STANDALONE=false \
+      -e MIRROR_SOURCE=https://registry-1.docker.io \
+      -e MIRROR_SOURCE_INDEX=https://index.docker.io \
+      -p 5000:5000 registry:0.9.1
+      # Stop
+      ExecStop=/usr/bin/docker stop docker-registry
+      [Install]
+      WantedBy=multi-user.target
 
 # {{ ansible_managed }}

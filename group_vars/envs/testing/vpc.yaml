@@ -21,3 +21,6 @@ vpc_subnets:
 vpc_internet_gateway: "yes"
 
 vpc_route_tables_tags: { "Name": "bastion-rt", "env": "testing", "group": "gaia" }
+
+# zone is private to VPC, there is no conflict in domain.
+vpc_dns_zone: "gaia.priv"

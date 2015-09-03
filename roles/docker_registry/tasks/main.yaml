@@ -46,3 +46,23 @@
     user_data: "{{ user_data }}"
   register: ec2_out
   with_items: "{{ vpc_private_subnets_full }}"
+
+# get IPs of registries in a list
+- set_fact:
+    registry_ip: "{{ item.instances[0].private_ip }}"
+  with_items: "{{ ec2_out.results }}"
+  register: registry_ip_out
+- set_fact:
+    registry_ips: "{{ registry_ip_out.results | map(attribute='ansible_facts.registry_ip') | list | join(',') }}"
+
+- name: setup docker-registry DNS records
+  route53:
+    command: create
+    vpc_id: "{{ vpc.vpc_id }}"
+    private_zone: True
+    zone: "{{ vpc_dns_zone }}"
+    hosted_zone_id: "{{ zone_out.set.zone_id }}"
+    record: "docker-registry.{{ vpc_dns_zone }}"
+    type: A
+    value: "{{ registry_ips }}"
+    ttl: 7200

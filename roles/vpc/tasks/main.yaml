@@ -15,3 +15,11 @@
     vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"
     vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
     vpc_private_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'private') }}"
+
+- name: create DNS zone
+  route53_zone:
+    vpc_id: "{{ vpc.vpc_id }}"
+    vpc_region: "{{ ec2_region }}"
+    zone: "{{ vpc_dns_zone }}"
+    state: present
+  register: zone_out
