@@ -74,12 +74,19 @@
       ttl: "{{ rec.set.ttl }}"
       type: "{{ rec.set.type }}"
       value: "{{ rec.set.value }}"
+  - name: discover DNS zone
+    local_action: "command aws route53 list-hosted-zones-by-name --dns-name {{ vpc_dns_zone }} --max-items 2 --output json"
+    register: list_zones_result_out
+  - set_fact:
+      list_zones_result: "{{ list_zones_result_out.stdout | from_json }}"
+  - name: Check DNS zone count
+    fail:
+      msg: "Expected exactly one DNS zone"
+    when: "{{list_zones_result.HostedZones | length}} != 1"
+  - set_fact:
+      dns_zone_id: "{{ list_zones_result.HostedZones[0].Id }}"
   - name: delete DNS zone
-    route53_zone:
-      vpc_id: "{{ vpc.vpc_id }}"
-      vpc_region: "{{ ec2_region }}"
-      zone: "{{ vpc_dns_zone }}"
-      state: absent
+    local_action: "command aws route53 delete-hosted-zone --id {{ dns_zone_id }} --output json"
 
   # delete security groups
   - name: delete all security groups

@@ -22,5 +22,4 @@ vpc_internet_gateway: "yes"
 
 vpc_route_tables_tags: { "Name": "bastion-rt", "env": "develop", "group": "gaia" }
 
-# zone is private to VPC, there is no conflict in domain.
-vpc_dns_zone: "gaia.priv"
+vpc_dns_zone: "gaia-dev.priv"
