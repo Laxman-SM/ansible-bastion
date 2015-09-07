@@ -10,6 +10,13 @@
   - group_vars/envs/{{ environ | default("production") }}/nat.yaml
   - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
   - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
+
+  pre_tasks:
+    - name: create keys folder, if missing
+      file: path=./keys state=directory mode=0744
+    - name: set acceptable permissions for all existing files
+      copy: src=./keys/ dest=./keys mode=0600
+
   roles:
     # generate bastion key pair
     - role: keygen
