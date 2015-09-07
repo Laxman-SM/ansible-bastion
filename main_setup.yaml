@@ -30,5 +30,7 @@
     - role: nat
     # create bastion EC2 autoscale group
     - role: bastion_asg
+    # generate https certificates for docker registry
+    - role: https_certs
     # create docker registry
     - role: docker_registry

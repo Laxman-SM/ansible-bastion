@@ -74,6 +74,7 @@
       ttl: "{{ rec.set.ttl }}"
       type: "{{ rec.set.type }}"
       value: "{{ rec.set.value }}"
+    when: "{{ rec.set | length > 0 }}"
   - name: discover DNS zone
     local_action: "command aws route53 list-hosted-zones-by-name --dns-name {{ vpc_dns_zone }} --max-items 2 --output json"
     register: list_zones_result_out

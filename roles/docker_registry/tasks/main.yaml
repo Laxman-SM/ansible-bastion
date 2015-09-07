@@ -1,3 +1,4 @@
+# provision docker registry
 - name: Create the security group for the CoreOS cluster
   ec2_group:
     name: "{{ docker_registry_security_group.name }}"
@@ -24,11 +25,9 @@
     coreos_ami: "{{ find_out.results[0] }}"
 
 # generate user-data from template
-- name: create template
-  template: src='user-data.j2' dest='/tmp/user-data.txt'
 - name: load user-data content
   set_fact:
-    user_data: "{{ lookup('file', '/tmp/user-data.txt') }}"
+    user_data: "{{ lookup('file', 'roles/docker_registry/templates/user-data.j2') }}"
 
 # create a docker registry in each availability zone
 - ec2:

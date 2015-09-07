@@ -1,8 +1,61 @@
 #cloud-config
 
 ---
+write-files:
+  - path: /etc/haproxy/haproxy.cfg.tmpl
+    permissions: 0644
+    owner: root:root
+    content: |
+      global
+              log /dev/log    local2
+              maxconn 256
+              tune.ssl.default-dh-param 2048
+              # Default SSL material locations
+              ca-base /etc/ssl/certs
+              crt-base /etc/ssl/private
+              # Default ciphers to use on SSL-enabled listening sockets.
+              # For more information, see ciphers(1SSL). This list is from:
+              #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+              ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
+              ssl-default-bind-options no-sslv3
+      defaults
+              log     global
+              mode    http
+              option forwardfor
+              option http-server-close
+              option  httplog
+              timeout connect 5000
+              timeout client  50000
+              timeout server  50000
+      frontend all
+              bind :5080
+              bind :5443 ssl crt /usr/local/etc/haproxy/server.pem
+              # Always keep the next line to prevent falling back to http during redirection (HTTP-302, no trailing slash) when using https
+              rspirep ^Location:\ http://(.*)  Location:\ https://\1  if { ssl_fc }
+              default_backend servers
+      backend servers
+              server server1 SERVER_IP:5000 maxconn 256
+  - path: /etc/ssl/certs/gaia-ca.pem
+    permissions: 0644
+    owner: root:root
+    encoding: base64
+    content: "{{ gaia_ca_crt_content }}"
+  - path: /etc/haproxy/server.pem
+    permissions: 0644
+    owner: root:root
+    encoding: base64
+    content: "{{ docker_registry_pem_content }}"
 coreos:
   units:
+  - name: updatecertificates.service
+    command: start
+    content: |
+      [Unit]
+      Description=Update root CAs
+      # Before=docker.service
+      [Service]
+      ExecStart=/usr/sbin/update-ca-certificates
+      Type=oneshot
   - name: docker.service
     drop-ins:
     - name: 50-mk-docker.conf
@@ -49,5 +102,42 @@ coreos:
       ExecStop=/usr/bin/docker stop docker-registry
       [Install]
       WantedBy=multi-user.target
-
-# {{ ansible_managed }}
+  - name: haproxy.service
+    command: start
+    content: |
+      [Unit]
+      Description=HAProxy
+      Documentation=http://www.haproxy.org/
+      # Dependency ordering
+      After=docker_registry.service
+      Requires=docker_registry.service
+      [Service]
+      # Let processes take awhile to start up (for first run Docker containers)
+      # Large start timeout is to allow for pulling down Docker images from Registry
+      TimeoutStartSec=10min
+      TimeoutStopSec=15
+      # Change killmode from "control-group" to "none" to let Docker remove
+      # work correctly.
+      KillMode=none
+      # Restart policy
+      Restart=on-failure
+      RestartSec=10s
+      # Pre-start and Start
+      ## Directives with "=-" are allowed to fail without consequence
+      ExecStartPre=-/usr/bin/docker kill haproxy
+      ExecStartPre=-/usr/bin/docker rm haproxy
+      ExecStartPre=/bin/bash -a -c 'SERVER_IP=`docker inspect --format "{{ '{{ .NetworkSettings.IPAddress }}' }}" docker-registry` && sed "s/SERVER_IP/$SERVER_IP/g" /etc/haproxy/haproxy.cfg.tmpl > /etc/haproxy/haproxy.cfg'
+      ExecStartPre=/usr/bin/docker pull haproxy:1.5.14
+      ExecStart=/usr/bin/docker run \
+      --restart=always \
+      --privileged \
+      --name haproxy \
+      -p 5080:5080 \
+      -p 5443:5443 \
+      -v /etc/haproxy:/usr/local/etc/haproxy \
+      -v /dev/log:/dev/log \
+      haproxy:1.5.14
+      # Stop
+      ExecStop=/usr/bin/docker stop haproxy
+      [Install]
+      WantedBy=multi-user.target
