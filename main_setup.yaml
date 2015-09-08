@@ -11,11 +11,17 @@
   - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
   - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
 
+  vars:
+   - keys_link: ./keys
   pre_tasks:
-    - name: create keys folder, if missing
-      file: path=./keys state=directory mode=0744
-    - name: set acceptable permissions for all existing files
-      copy: src=./keys/ dest=./keys mode=0600
+   - name: collect data about ./keys
+     stat: path={{keys_link}}
+     register: k
+   - name: fail if there is no ./keys symbolic link
+     fail: msg="{{keys_link}} is not ready. Be sure you have {{keys_link}} symbolic link that points to a folder with all relevant certificates"
+     failed_when: k.stat.exists!=true or k.stat.islnk!=true
+   - name: set correct permissions on existing certificates (can be wrong after sync)
+     command: chmod -R 600 {{keys_link}}
 
   roles:
     # generate bastion key pair
