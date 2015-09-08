@@ -45,6 +45,20 @@ write-files:
     owner: root:root
     encoding: base64
     content: "{{ docker_registry_pem_content }}"
+  - path: /etc/docker/registry/config.yml
+    permissions: 0644
+    owner: root:root
+    content: |
+      version: 0.1
+      log:
+        level: info
+      storage:
+        filesystem:
+          rootdirectory: /docker-cache
+      http:
+        addr: :5000
+      proxy:
+        remoteurl: https://registry-1.docker.io
 coreos:
   units:
   - name: updatecertificates.service
@@ -68,8 +82,8 @@ coreos:
     command: start
     content: |
       [Unit]
-      Description=Docker Registry V1 (mirror)
-      Documentation=https://github.com/docker/docker-registry
+      Description=Docker Registry V2 (mirror)
+      Documentation=https://github.com/docker/distribution
       # Dependency ordering
       After=docker.service
       Requires=docker.service
@@ -89,15 +103,13 @@ coreos:
       ExecStartPre=-/bin/mkdir /docker-cache
       ExecStartPre=-/usr/bin/docker kill docker-registry
       ExecStartPre=-/usr/bin/docker rm docker-registry
-      ExecStartPre=/usr/bin/docker pull registry:0.9.1
+      ExecStartPre=/usr/bin/docker pull distribution/registry:2.1.1
       ExecStart=/usr/bin/docker run \
       --name docker-registry \
       -v /docker-cache:/docker-cache \
-      -e STORAGE_PATH=/docker-cache \
-      -e STANDALONE=false \
-      -e MIRROR_SOURCE=https://registry-1.docker.io \
-      -e MIRROR_SOURCE_INDEX=https://index.docker.io \
-      -p 5000:5000 registry:0.9.1
+      -v /etc/docker/registry/config.yml:/etc/docker/registry/config.yml \
+      -p 5000:5000 \
+      distribution/registry:2.1.1
       # Stop
       ExecStop=/usr/bin/docker stop docker-registry
       [Install]
