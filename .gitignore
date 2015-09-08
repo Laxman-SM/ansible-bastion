@@ -3,4 +3,5 @@
 .python
 *.pyc
 keys/
+keys
 try.yaml
