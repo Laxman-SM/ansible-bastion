@@ -4,7 +4,6 @@
     - git
     - python-pip
     - python-dev
-    - docker
 - name: install python packages
   pip: name={{ item }}
   with_items:
