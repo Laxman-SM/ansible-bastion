@@ -21,7 +21,7 @@
      fail: msg="{{keys_link}} is not ready. Be sure you have {{keys_link}} symbolic link that points to a folder with all relevant certificates"
      failed_when: k.stat.exists!=true or k.stat.islnk!=true
    - name: set correct permissions on existing certificates (can be wrong after sync)
-     command: chmod -R 600 {{keys_link}}
+     command: find -L {{keys_link}} -type f -exec chmod 600 {} \;
 
   roles:
     # generate bastion key pair
