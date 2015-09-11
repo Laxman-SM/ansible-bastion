@@ -18,7 +18,7 @@ docker_registry_keypair_file: docker-registry-key-dev.pem
 # https server certificate
 gaia_ca_file: gaia-ca-dev
 gaia_ca_subj: "/C=/ST=/L=/O=/CN={{ vpc_dns_zone }}"
-docker_registry_cert_file: docker-registry-cert-test
+docker_registry_cert_file: docker-registry-cert-dev
 docker_registry_cert_subj: "/C=/ST=/L=/O=/CN=docker-registry.{{ vpc_dns_zone }}"
 
 docker_registry_channel: alpha
