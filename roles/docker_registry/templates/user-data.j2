@@ -122,7 +122,7 @@ coreos:
       Documentation=http://www.haproxy.org/
       # Dependency ordering
       After=docker_registry.service
-      Requires=docker_registry.service
+      BindsTo=docker_registry.service
       [Service]
       # Let processes take awhile to start up (for first run Docker containers)
       # Large start timeout is to allow for pulling down Docker images from Registry
