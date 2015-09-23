@@ -24,6 +24,6 @@ docker_registry_cert_subj: "/C=/ST=/L=/O=/CN=docker-registry.{{ vpc_dns_zone }}"
 docker_registry_channel: alpha
 docker_registry_coreos_version: 808.0.0
 
-docker_registry_instance_type: m3.large     # 2 vCPU, 7.5GB RAM, 1x32 SSD
+docker_registry_instance_type: m3.large     # 2 vCPU, 7.5GB RAM, 1x32 SSD - $0.133 per Hour
 
 docker_registry_instance_tags: { "Name": "docker-registry", "env": "production", "group": "gaia", "type": "docker-registry-vm", "decription": "Docker Registry Node" }

@@ -12,7 +12,7 @@ bastion_security_group:
 bastion_keypair_name: bastion-keypair-prod
 bastion_keypair_file: bastion-key-prod.pem
 
-bastion_instance_type: m3.large
+bastion_instance_type: t2.small  # 1 CPU, 2GB RAM, EBS storage - $0.026 per Hour
 bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
 bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "production", "type": "bastion-vm" ]
 
