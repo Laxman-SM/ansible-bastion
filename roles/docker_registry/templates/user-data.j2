@@ -35,6 +35,12 @@ write-files:
               default_backend servers
       backend servers
               server server1 SERVER_IP:5000 maxconn 256
+  # use separate file for DOCKER_OPTS
+  - path: /run/docker_opts.env
+    permissions: 0644
+    owner: root:root
+    content: |
+      DOCKER_OPTS="--log-driver=none"
   - path: /etc/ssl/certs/gaia-ca.pem
     permissions: 0644
     owner: root:root
@@ -77,6 +83,9 @@ coreos:
         [Service]
         Restart=always
         Restart=on-failure
+        EnvironmentFile=/run/docker_opts.env
+        ExecStart=
+        ExecStart=/usr/lib/coreos/dockerd daemon --host=fd:// $DOCKER_OPTS $DOCKER_OPT_BIP $DOCKER_OPT_MTU $DOCKER_OPT_IPMASQ
       command: start
   - name: docker_registry.service
     command: start
