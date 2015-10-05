@@ -43,6 +43,11 @@
     instance_tags: "{{ docker_registry_instance_tags }}"
     monitoring: yes
     user_data: "{{ user_data }}"
+    volumes:
+      - device_name: /dev/xvda
+        volume_type: standard
+        volume_size: "{{ docker_registry_volume_size }}"
+        delete_on_termination: true
   register: ec2_out
   with_items: "{{ vpc_private_subnets_full }}"
 

@@ -11,6 +11,9 @@ docker_registry_security_group:
       to_port: 22
       cidr_ip: "{{ vpc_cidr_block }}"
 
+# size in GB
+docker_registry_volume_size: 60
+
 # ssh keypair
 docker_registry_keypair_name: docker-registry-keypair-prod
 docker_registry_keypair_file: docker-registry-key-prod.pem
