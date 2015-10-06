@@ -4,6 +4,9 @@ nat_keypair_file: bastion-nat-key-prod.pem
 nat_instance_type: "t2.micro"
 nat_instance_tags: { "Name": "Bastion_NAT", "env": "production", "group": "gaia" }
 
+# size in GB
+nat_volume_size: 10
+
 nat_security_group:
   name: bastion_nat_sg_prod
   desc: the NAT security group for bastion

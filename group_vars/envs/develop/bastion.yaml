@@ -9,6 +9,9 @@ bastion_security_group:
       to_port: 22
       cidr_ip: 0.0.0.0/0
 
+# size in GB
+bastion_volume_size: 10
+
 bastion_keypair_name: bastion-keypair-dev
 bastion_keypair_file: bastion-key-dev.pem
 

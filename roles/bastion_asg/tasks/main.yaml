@@ -35,6 +35,11 @@
     instance_type: "{{ bastion_instance_type }}"
     assign_public_ip: yes
     instance_monitoring: yes
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: standard
+        volume_size: "{{ bastion_volume_size }}"
+        delete_on_termination: true
 
 # create bastion autoscale group
 - name: create bastion autoscale group
