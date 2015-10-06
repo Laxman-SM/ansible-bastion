@@ -22,4 +22,4 @@ vpc_internet_gateway: "yes"
 
 vpc_route_tables_tags: { "Name": "bastion-rt", "env": "production", "group": "gaia" }
 
-vpc_dns_zone: "gaia-prod.priv"
+vpc_dns_zone: "gaia-prod.{{ ec2_region }}.priv"
