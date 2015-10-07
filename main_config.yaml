@@ -11,11 +11,11 @@
     add_host: >
       hostname="{{item}}"
       groupname=launched_bastion
-      ansible_ssh_private_key_file=keys/{{bastion_keypair_file}}
+      ansible_ssh_private_key_file=keys/{{ec2_region}}/{{bastion_keypair_file}}
     with_items: groups.{{bastion_asg_group_name}}
 
   - name: Wait for SSH to come up
-    wait_for: host="{{item}}" port=22 delay=60 timeout=320 state=started
+    wait_for: host="{{item}}" port=22 delay=20 timeout=320 state=started
     with_items: groups.launched_bastion
 
 # configure bastion instances

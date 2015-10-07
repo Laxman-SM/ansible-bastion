@@ -1,46 +1,49 @@
 # generate https gaia priv CA
+- name: Create keys/region directory
+  file: path=keys/{{ ec2_region }} state=directory mode=0700
+
 - name: create CA key
-  shell: "openssl genrsa -out keys/{{ gaia_ca_file }}.key 2048"
+  shell: "openssl genrsa -out keys/{{ec2_region}}/{{ gaia_ca_file }}.key 2048"
   args:
-    creates: "keys/{{ gaia_ca_file }}.key"
+    creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.key"
 - name: create CA csr
-  shell: "openssl req -sha256 -new -subj {{ gaia_ca_subj }} -key keys/{{ gaia_ca_file }}.key -out keys/{{ gaia_ca_file }}.csr"
+  shell: "openssl req -sha256 -new -subj {{ gaia_ca_subj }} -key keys/{{ec2_region}}/{{ gaia_ca_file }}.key -out keys/{{ec2_region}}/{{ gaia_ca_file }}.csr"
   args:
-    creates: "keys/{{ gaia_ca_file }}.csr"
+    creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.csr"
 - name: create CA crt
-  shell: "openssl x509 -days 3650 -signkey keys/{{ gaia_ca_file }}.key -in keys/{{ gaia_ca_file }}.csr -req -out keys/{{ gaia_ca_file }}.crt"
+  shell: "openssl x509 -days 3650 -signkey keys/{{ec2_region}}/{{ gaia_ca_file }}.key -in keys/{{ec2_region}}/{{ gaia_ca_file }}.csr -req -out keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
   args:
-    creates: "keys/{{ gaia_ca_file }}.crt"
+    creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
 
 # generate docker registry https server certificate
 - name: create server certificate key
-  shell: "openssl genrsa -out keys/{{ docker_registry_cert_file }}.key 2048"
+  shell: "openssl genrsa -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key 2048"
   args:
-    creates: "keys/{{ docker_registry_cert_file }}.key"
+    creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key"
 - name: create server certificate csr
-  shell: "openssl req -sha256 -new -subj {{ docker_registry_cert_subj }} -key keys/{{ docker_registry_cert_file }}.key -out keys/{{ docker_registry_cert_file }}.csr"
+  shell: "openssl req -sha256 -new -subj {{ docker_registry_cert_subj }} -key keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr"
   args:
-    creates: "keys/{{ docker_registry_cert_file }}.csr"
+    creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr"
 - name: create server certificate crt
-  shell: "openssl x509 -days 3650 -CA keys/{{ gaia_ca_file }}.crt -CAkey keys/{{ gaia_ca_file }}.key -set_serial 01 -in keys/{{ docker_registry_cert_file }}.csr -req -out keys/{{ docker_registry_cert_file }}.crt"
+  shell: "openssl x509 -days 3650 -CA keys/{{ec2_region}}/{{ gaia_ca_file }}.crt -CAkey keys/{{ec2_region}}/{{ gaia_ca_file }}.key -set_serial 01 -in keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr -req -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt"
   args:
-    creates: "keys/{{ docker_registry_cert_file }}.crt"
+    creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt"
 
 # bundle crt + key into 1 file for haproxy
 - name: create server certificate pem
-  shell: "cat keys/{{ docker_registry_cert_file }}.crt keys/{{ docker_registry_cert_file }}.key > keys/{{ docker_registry_cert_file }}.pem"
+  shell: "cat keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key > keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
   args:
-    creates: "keys/{{ docker_registry_cert_file }}.pem"
+    creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
 
 # set facts with file content for cloud-config
 - set_fact:
-    gaia_ca_crt_file: "keys/{{ gaia_ca_file }}.crt"
+    gaia_ca_crt_file: "keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
 - shell: "base64 -w0 {{ gaia_ca_crt_file }}"
   register: gaia_ca_crt_content_out
 - set_fact:
     gaia_ca_crt_content: "{{ gaia_ca_crt_content_out.stdout }}"
 - set_fact:
-    docker_registry_pem_file: "keys/{{ docker_registry_cert_file }}.pem"
+    docker_registry_pem_file: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
 - shell: "base64 -w0 {{ docker_registry_pem_file }}"
   register: docker_registry_pem_content_out
 - set_fact:
