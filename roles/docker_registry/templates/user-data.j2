@@ -67,6 +67,9 @@ write-files:
         remoteurl: https://registry-1.docker.io
 coreos:
   units:
+  # start the service manually to perform coreos update
+  - name: update-engine.service
+    command: stop
   - name: updatecertificates.service
     command: start
     content: |
