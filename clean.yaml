@@ -34,6 +34,7 @@
       state: absent
     with_items:
       - { name: "{{ bastion_asg_name }}", lc_name: "{{ bastion_lc_name }}" }
+    ignore_errors: yes
 
   - name: remove launch configurations for bastion
     ec2_lc:
@@ -43,6 +44,7 @@
       state: absent
     with_items:
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
+    ignore_errors: yes
 
   # find vpc id
   - name: find vpc id
@@ -86,6 +88,8 @@
     when: dns_zone == ""
   - name: delete DNS zone
     local_action: "command aws route53 delete-hosted-zone --id {{ dns_zone.Id }} --output json"
+    when: dns_zone != ""
+    ignore_errors: yes
 
   # delete security groups
   - name: delete all security groups
@@ -99,6 +103,7 @@
       - { name: "{{ nat_security_group.name }}" , description: "{{ nat_security_group.desc }}"}
       - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
       - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
+    ignore_errors: yes
 
   # delete VPC
   - name: delete VPC

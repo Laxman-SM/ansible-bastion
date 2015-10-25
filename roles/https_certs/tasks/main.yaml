@@ -38,13 +38,13 @@
 # set facts with file content for cloud-config
 - set_fact:
     gaia_ca_crt_file: "keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
-- shell: "base64 -w0 {{ gaia_ca_crt_file }}"
+- shell: "openssl enc -base64 -A -in {{ gaia_ca_crt_file }}"
   register: gaia_ca_crt_content_out
 - set_fact:
     gaia_ca_crt_content: "{{ gaia_ca_crt_content_out.stdout }}"
 - set_fact:
     docker_registry_pem_file: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
-- shell: "base64 -w0 {{ docker_registry_pem_file }}"
+- shell: "openssl enc -base64 -A -in {{ docker_registry_pem_file }}"
   register: docker_registry_pem_content_out
 - set_fact:
     docker_registry_pem_content: "{{ docker_registry_pem_content_out.stdout }}"
