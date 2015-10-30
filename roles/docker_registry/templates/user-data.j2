@@ -7,7 +7,7 @@ write-files:
     owner: root:root
     content: |
       global
-              log /dev/log    local2
+              log /dev/log    local2 notice
               maxconn 256
               tune.ssl.default-dh-param 2048
               # Default SSL material locations
@@ -24,6 +24,9 @@ write-files:
               option forwardfor
               option http-server-close
               option  httplog
+              option log-separate-errors
+              option dontlognull
+              option dontlog-normal
               timeout connect 5000
               timeout client  50000
               timeout server  50000
@@ -40,7 +43,7 @@ write-files:
     permissions: 0644
     owner: root:root
     content: |
-      DOCKER_OPTS="--log-driver=none"
+      DOCKER_OPTS="--log-driver=none --log-level=warn"
   - path: /etc/ssl/certs/gaia-ca.pem
     permissions: 0644
     owner: root:root
