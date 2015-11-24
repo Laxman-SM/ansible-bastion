@@ -1,0 +1,28 @@
+# Bastion variables
+
+bastion_security_group:
+  name: "bastion-sg-{{ env_nick[environ] }}"
+  desc: the security group for the bastion vpc
+  rules:
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+
+# size in GB
+bastion_volume_size: 10
+
+bastion_keypair_name: "bastion-keypair-{{ env_nick[environ] }}"
+bastion_keypair_file: "bastion-key-{{ env_nick[environ] }}.pem"
+
+bastion_instance_type: "{{ instance_type.bastion[environ] }}"
+bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
+bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "{{ environ }}", "type": "bastion-vm" ]
+
+bastion_lc_name: "bastion-lc-{{ env_nick[environ] }}"
+bastion_asg_name: "bastion-asg-{{ env_nick[environ] }}"
+bastion_asg_group_name: "tag_aws_autoscaling_groupName_bastion_asg_{{ env_nick[environ] }}"
+bastion_health_check_period: 60
+bastion_cluster_size: 2
+bastion_min_cluster_size: 2
+bastion_max_cluster_size: 4

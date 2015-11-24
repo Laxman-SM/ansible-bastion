@@ -5,11 +5,10 @@
   connection: local
   gather_facts: False
   vars_files:
-  - group_vars/all.yaml
-  - group_vars/envs/{{ environ | default("production") }}/vpc.yaml
-  - group_vars/envs/{{ environ | default("production") }}/nat.yaml
-  - group_vars/envs/{{ environ | default("production") }}/bastion.yaml
-  - group_vars/envs/{{ environ | default("production") }}/docker_registry.yaml
+  - group_vars/vpc.yaml
+  - group_vars/nat.yaml
+  - group_vars/bastion.yaml
+  - group_vars/docker_registry.yaml
 
   vars:
    - keys_link: ./keys

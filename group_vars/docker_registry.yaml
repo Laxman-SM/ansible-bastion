@@ -1,5 +1,5 @@
 docker_registry_security_group:
-  name: docker_registry_sg_dev
+  name: "docker_registry_sg_{{ env_nick[environ] }}"
   desc: the security group for the docker-registry vpc
   rules:
     - proto: tcp
@@ -12,11 +12,11 @@ docker_registry_security_group:
       cidr_ip: "{{ vpc_cidr_block }}"
 
 # size in GB
-docker_registry_volume_size: 40
+docker_registry_volume_size: 60
 
 # ssh keypair
-docker_registry_keypair_name: docker-registry-keypair-dev
-docker_registry_keypair_file: docker-registry-key-dev.pem
+docker_registry_keypair_name: "docker-registry-keypair-{{ env_nick[environ] }}"
+docker_registry_keypair_file: "docker-registry-key-{{ env_nick[environ] }}.pem"
 
 # https server certificate
 gaia_ca_file: "ca.{{ vpc_dns_zone }}"
@@ -27,6 +27,6 @@ docker_registry_cert_subj: "/C=/ST=/L=/O=/CN=docker-registry.{{ vpc_dns_zone }}"
 docker_registry_channel: alpha
 docker_registry_coreos_version: 833.0.0
 
-docker_registry_instance_type: t2.small     # 1CPU, 2GB, EBS storage - $0.026 per Hour
+docker_registry_instance_type: "{{ instance_type.docker_registry[environ] }}"
 
-docker_registry_instance_tags: { "Name": "docker-registry", "env": "develop", "group": "gaia", "type": "docker-registry-vm", "decription": "Docker Registry Node" }
+docker_registry_instance_tags: { "Name": "docker-registry", "env": "{{ environ}}", "group": "gaia", "type": "docker-registry-vm", "decription": "Docker Registry Node" }

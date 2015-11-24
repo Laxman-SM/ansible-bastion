@@ -1,14 +1,14 @@
 # nat - parameters
-nat_keypair_name: bastion-nat-keypair-prod
-nat_keypair_file: bastion-nat-key-prod.pem
-nat_instance_type: "t2.micro"
-nat_instance_tags: { "Name": "Bastion_NAT", "env": "production", "group": "gaia" }
+nat_keypair_name: "bastion-nat-keypair-{{ env_nick[environ] }}"
+nat_keypair_file: "bastion-nat-key-{{ env_nick[environ] }}.pem"
+nat_instance_type: "{{ instance_type.nat[environ] }}"
+nat_instance_tags: { "Name": "Bastion_NAT", "env": "{{ environ }}", "group": "gaia" }
 
 # size in GB
 nat_volume_size: 10
 
 nat_security_group:
-  name: bastion_nat_sg_prod
+  name: "bastion_nat_sg_{{ env_nick[environ] }}"
   desc: the NAT security group for bastion
   rules:
     - proto: tcp

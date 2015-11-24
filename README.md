@@ -53,21 +53,18 @@ We use additional Ansible AWS module `ec2_ami_find` from Ansible 2.0, that are n
 
 # create new Bastion environment
 
-The **Bastion** environment consists from dedicated VPC with several public subnets in different AWS availability zones. To configure number of subnets and Bastion cluster size, edit `group_vars/envs/production/*` or create new configuration folder, based on above file, with **different values** (IP addresses, environment, key names, security group names).
-To invoke Ansible playbook with different configuration (`myenv.yaml`) use the following commands:
+The **Bastion** environment consists from dedicated VPC with several public subnets in different AWS availability zones. To configure number of subnets and Bastion cluster size, edit `group_vars/env.yaml` file. By default two environments are defined: **production** (default) and **develop**.
+To invoke Ansible playbook with different environment use the following commands:
 
 ```
-cp group_vars/envs/production/ group_vars/envs/myenv
-vim group_vars/envs/myenv/*.yaml
-
-main.sh myenv
+./main.sh -e production|develop|custom
 ```
 
-**Note**: we use 2 Ansible playbooks to discover dynamic inventory, created in first book, in second playbook. You can use `./main.sh myenv` shell script with parameter.
+**Note**: we use 2 Ansible playbooks to discover dynamic inventory, created in first book, in second playbook.
 
 to cleanup previously created environment, run the following code
 ```
-clean.sh myenv
+clean.sh -e production|develop|custom
 ```
 
 if clean.yaml is invoked directly, EC2_INI_PATH must be setup to point to inventory/ec2_priv.ini since for cleanup private IPs are needed
