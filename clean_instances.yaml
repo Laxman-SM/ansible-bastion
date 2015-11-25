@@ -1,13 +1,13 @@
 ---
 - name: Find NAT instances and terminate them
-  hosts: tag_Name_Bastion_NAT:&tag_env_{{ environ | default("production") }}:&{{ lookup('env', 'AWS_DEFAULT_REGION') }}
+  hosts: tag_Name_Bastion_NAT:&tag_env_{{ environ | default("develop") }}:&{{ lookup('env', 'AWS_DEFAULT_REGION') }}
   gather_facts: False
   roles:
     - terminate
 
 - name: Find docker registries and terminate them
   connection: local
-  hosts: tag_Name_docker_registry:&tag_env_{{ environ | default("production") }}:&{{ lookup('env', 'AWS_DEFAULT_REGION') }}
+  hosts: tag_Name_docker_registry:&tag_env_{{ environ | default("develop") }}:&{{ lookup('env', 'AWS_DEFAULT_REGION') }}
   gather_facts: False
   roles:
     - terminate

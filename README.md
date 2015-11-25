@@ -53,7 +53,7 @@ We use additional Ansible AWS module `ec2_ami_find` from Ansible 2.0, that are n
 
 # create new Bastion environment
 
-The **Bastion** environment consists from dedicated VPC with several public subnets in different AWS availability zones. To configure number of subnets and Bastion cluster size, edit `group_vars/env.yaml` file. By default two environments are defined: **production** (default) and **develop**.
+The **Bastion** environment consists from dedicated VPC with several public subnets in different AWS availability zones. To configure number of subnets and Bastion cluster size, edit `group_vars/all/env.yaml` file. By default two environments are defined: **production** and **develop** (default).
 To invoke Ansible playbook with different environment use the following commands:
 
 ```
