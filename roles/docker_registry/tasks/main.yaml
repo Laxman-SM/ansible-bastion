@@ -9,7 +9,7 @@
   register: docker_registry_sg
 
 # search for latest CoreOS AMI from alpha/beta/stable channel
-- name: search for the latest CoreOS AMI image from "{{ docker_registry_channel }}"
+- name: search for the latest CoreOS AMI image from "{{ coreos_channel }}"
   ec2_ami_find:
     region: "{{ ec2_region }}"
     name: "CoreOS-{{coreos_channel}}-{{coreos_version}}-hvm"
