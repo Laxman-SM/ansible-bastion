@@ -33,9 +33,11 @@
 
   - name: delete NAT gateways
     shell: "aws ec2 delete-nat-gateway --nat-gateway-id {{ nat_gateways_info.NatGateways[0].NatGatewayId }}"
+    ignore_errors: yes
 
   - name: delete elastic ip
     shell: "aws ec2 release-address --allocation-id {{ nat_gateways_info.NatGateways[0].NatGatewayAddresses[0].AllocationId }}"
+    ignore_errors: yes
 
   # delete bastion machines
   - name: remove autoscale groups for bastion
