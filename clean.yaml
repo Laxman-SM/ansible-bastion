@@ -20,12 +20,12 @@
       wait: true
     register: vpc
 
-  # delete NAT gateways
+  # delete NAT gateway & Elastic IP
   - name: get vpc public subnets
     set_fact:
       vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
 
-  - name: get NAT gateway id using subnet id
+  - name: get NAT gateways using subnet id
     shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
     register: nat_gateways
   - set_fact:
@@ -33,6 +33,9 @@
 
   - name: delete NAT gateways
     shell: "aws ec2 delete-nat-gateway --nat-gateway-id {{ nat_gateways_info.NatGateways[0].NatGatewayId }}"
+
+  - name: delete elastic ip
+    shell: "aws ec2 release-address --allocation-id {{ nat_gateways_info.NatGateways[0].NatGatewayAddresses[0].AllocationId }}"
 
   # delete bastion machines
   - name: remove autoscale groups for bastion
