@@ -9,15 +9,30 @@
   - group_vars/docker_registry.yaml
   tasks:
 
-  # delete all NAT gateways
-  - name: get NAT gateways
-    shell: "aws ec2 describe-nat-gateways"
+  # find vpc id
+  - name: find vpc id
+    ec2_vpc:
+      region: "{{ ec2_region }}"
+      cidr_block: "{{ vpc_cidr_block }}"
+      resource_tags: "{{ vpc_resource_tags }}"
+      internet_gateway: "{{ vpc_internet_gateway|string }}"
+      subnets: "{{ vpc_subnets }}"
+      wait: true
+    register: vpc
+
+  # delete NAT gateways
+  - name: get vpc public subnets
+    set_fact:
+      vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
+
+  - name: get NAT gateway id using subnet id
+    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
     register: nat_gateways
   - set_fact:
       nat_gateways_info: "{{ nat_gateways.stdout | from_json }}"
+
   - name: delete NAT gateways
-    shell: "aws ec2 delete-nat-gateway --nat-gateway-id {{ item.NatGatewayId }}"
-    with_items: "{{ nat_gateways_info }}"
+    shell: "aws ec2 delete-nat-gateway --nat-gateway-id {{ nat_gateways_info.NatGateways[0].NatGatewayId }}"
 
   # delete bastion machines
   - name: remove autoscale groups for bastion
@@ -39,17 +54,6 @@
     with_items:
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
     ignore_errors: yes
-
-  # find vpc id
-  - name: find vpc id
-    ec2_vpc:
-      region: "{{ ec2_region }}"
-      cidr_block: "{{ vpc_cidr_block }}"
-      resource_tags: "{{ vpc_resource_tags }}"
-      internet_gateway: "{{ vpc_internet_gateway|string }}"
-      subnets: "{{ vpc_subnets }}"
-      wait: true
-    register: vpc
 
   # delete DNS zone
   - route53:
