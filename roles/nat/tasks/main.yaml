@@ -1,4 +1,4 @@
-- name: allocate a new elastic IP
+- name: allocate new elastic IP
   shell: "aws ec2 allocate-address --domain vpc"
   register: elastic_ip
 - set_fact:

@@ -4,7 +4,6 @@
   gather_facts: False
   vars_files:
   - group_vars/vpc.yaml
-  - group_vars/nat.yaml
   - group_vars/bastion.yaml
   - group_vars/docker_registry.yaml
   tasks:
@@ -99,7 +98,6 @@
       vpc_id: "{{ vpc.vpc_id }}"
       state: absent
     with_items:
-      - { name: "{{ nat_security_group.name }}" , description: "{{ nat_security_group.desc }}"}
       - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
       - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
     ignore_errors: yes

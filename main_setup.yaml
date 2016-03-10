@@ -6,7 +6,6 @@
   gather_facts: False
   vars_files:
   - group_vars/vpc.yaml
-  - group_vars/nat.yaml
   - group_vars/bastion.yaml
   - group_vars/docker_registry.yaml
 
@@ -27,10 +26,6 @@
     - role: keygen
       keypair_name: "{{ bastion_keypair_name }}"
       keypair_file: "{{ bastion_keypair_file }}"
-    # generate nat key pair
-    - role: keygen
-      keypair_name: "{{ nat_keypair_name }}"
-      keypair_file: "{{ nat_keypair_file }}"
     # generate docker-registry key pair
     - role: keygen
       keypair_name: "{{ docker_registry_keypair_name }}"
