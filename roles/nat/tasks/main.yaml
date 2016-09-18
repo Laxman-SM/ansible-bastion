@@ -5,6 +5,7 @@
     region: "{{ ec2_region }}"
     in_vpc: true
     release_on_disassociation: true
+    reuse_existing_ip_allowed: true
   register: elastic_ip_info
 
 # Create new NAT service
