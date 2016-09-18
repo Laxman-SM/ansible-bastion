@@ -20,22 +20,25 @@
     register: vpc
 
   # delete NAT gateway & Elastic IP
+
   - name: get vpc public subnets
     set_fact:
       vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
 
-  - name: get NAT gateways using subnet id
-    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
-    register: nat_gateways
-  - set_fact:
-      nat_gateways_info: "{{ nat_gateways.stdout | from_json }}"
-
-  - name: delete NAT gateways
-    shell: "aws ec2 delete-nat-gateway --nat-gateway-id {{ nat_gateways_info.NatGateways[0].NatGatewayId }}"
+  - name: get NAT gateway id using subnet id
+    ec2_vpc_nat_gateway:
+      if_exist_do_not_create: yes
+      subnet_id: "{{ vpc_public_subnets_full[0].id }}"
+      state: absent
+    register: nat_gateways_info
     ignore_errors: yes
 
-  - name: delete elastic ip
-    shell: "aws ec2 release-address --allocation-id {{ nat_gateways_info.NatGateways[0].NatGatewayAddresses[0].AllocationId }}"
+  - name: delete NAT gateways
+    ec2_vpc_nat_gateway:
+      state: absent
+      nat_gateway_id: "{{ nat_gateways_info.nat_gateway_id }}"
+      release_eip: true
+      wait: yes
     ignore_errors: yes
 
   # delete bastion machines
@@ -58,6 +61,26 @@
     with_items:
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
     ignore_errors: yes
+
+  # delete Docker registry machines
+
+  - name: get docker-registry instances
+    ec2_remote_facts:
+      region: "{{ ec2_region }}"
+      filters:
+        vpc-id: "{{ vpc.vpc_id }}"
+        instance-state-name: running
+        tag:Name: docker-registry
+    register: docker_registry_data
+    ignore_errors: yes
+
+  - name: terminate docker-registry instances
+    ec2:
+      region: "{{ ec2_region }}"
+      state: absent
+      instance_ids: "{{ item.id }}"
+      wait: yes
+    with_items: "{{ docker_registry_data.instances }}"
 
   # delete DNS zone
   - route53:

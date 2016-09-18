@@ -1,22 +1,23 @@
-- name: allocate new elastic IP
-  shell: "aws ec2 allocate-address --domain vpc"
-  register: elastic_ip
-- set_fact:
-    elastic_ip_info: "{{ elastic_ip.stdout | from_json }}"
+# Create new Elastic IP
+- name: Allocate a new elastic IP without associating it to anything
+  ec2_eip:
+    state: present
+    region: "{{ ec2_region }}"
+    in_vpc: true
+    release_on_disassociation: true
+  register: elastic_ip_info
 
-- name: create NAT Gateway service
-  shell: "aws ec2 create-nat-gateway --subnet-id {{ vpc_public_subnets_full[0].id }} --allocation-id {{ elastic_ip_info.AllocationId }}"
-  register: nat_gateway
-- set_fact:
-    nat_gateway_info: "{{ nat_gateway.stdout | from_json }}"
+# Create new NAT service
+- name: Create new NAT Gateway service using an allocation-id
+  ec2_vpc_nat_gateway:
+    state: present
+    subnet_id: "{{ vpc_public_subnets_full[0].id }}"
+    allocation_id: "{{ elastic_ip_info.allocation_id }}"
+    region: "{{ ec2_region }}"
+    wait: yes
+  register: nat_gateway_info
 
-- name: wait until NAT gateway is available
-  shell: "aws ec2 describe-nat-gateways --nat-gateway-ids {{ nat_gateway_info.NatGateway.NatGatewayId }} --filter Name=state,Values=available"
-  register: nat_gateway
-  until: nat_gateway.stdout.find( '{{ nat_gateway_info.NatGateway.NatGatewayId }}' ) > -1
-  retries: 20
-  delay: 5
-
+# Update VPC routeing tables
 - name: update vpc routing tables
   ec2_vpc:
     region: "{{ ec2_region }}"
@@ -33,6 +34,6 @@
       - subnets: "{{ vpc.subnets | get_subnets('tier', 'private', 'cidr') }}"
         routes:
           - dest: 0.0.0.0/0
-            gw: "{{ nat_gateway_info.NatGateway.NatGatewayId }}"
+            gw: "{{ nat_gateway_info.nat_gateway_id }}"
         resource_tags: "{{ vpc_route_tables_tags }}"
   register: ec2_vpc_out

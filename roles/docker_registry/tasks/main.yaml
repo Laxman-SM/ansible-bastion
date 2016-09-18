@@ -51,12 +51,6 @@
   register: ec2_out
   with_items: "{{ vpc_private_subnets_full }}"
 
-- debug: var=ec2_out
-
-- debug: var=ec2_out.results
-
-- debug: var=ec2_out.results.instances
-
 # get IPs of registries in a list
 - set_fact:
     registry_ip: "{{ item.instances[0].private_ip }}"
