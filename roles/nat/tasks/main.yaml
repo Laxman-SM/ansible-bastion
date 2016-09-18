@@ -1,7 +1,24 @@
+# get NAT gateway if already exists
+- name: get NAT gateway id using subnet id
+  shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
+  register: nat_gateway
+  changed_when: False
+- set_fact:
+    nat_gateway_info: "{{ nat_gateway.stdout | from_json }}"
+- set_fact:
+    nat_network_interface_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayAddresses[0].NetworkInterfaceId }}"
+  when:
+    - nat_gateway_info.NatGateways[0] is defined
+    - nat_gateway_info.NatGateways[0].NatGatewayAddresses[0] is defined
+- set_fact:
+    nat_network_interface_id: ""
+  when: nat_network_interface_id is undefined
+
 # Create new Elastic IP
 - name: Allocate a new elastic IP without associating it to anything
   ec2_eip:
     state: present
+    device_id: "{{ nat_network_interface_id }}"
     region: "{{ ec2_region }}"
     in_vpc: true
     release_on_disassociation: true
@@ -12,6 +29,7 @@
 - name: Create new NAT Gateway service using an allocation-id
   ec2_vpc_nat_gateway:
     state: present
+    if_exist_do_not_create: yes
     subnet_id: "{{ vpc_public_subnets_full[0].id }}"
     allocation_id: "{{ elastic_ip_info.allocation_id }}"
     region: "{{ ec2_region }}"

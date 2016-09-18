@@ -1,7 +1,6 @@
 #!/bin/sh
-export EC2_INI_PATH=$(pwd)/inventory/ec2_priv.ini
+export EC2_INI_PATH=$(pwd)/inventory/ec2.ini
 echo $EC2_INI_PATH
-echo $AWS_DEFAULT_REGION
 
 # read input parameters
 vflag=""
@@ -18,5 +17,4 @@ do
   shift
 done
 
-ansible-playbook --extra-vars "environ=$e" clean_instances.yaml $vflag \
-&& ansible-playbook --extra-vars "environ=$e" clean.yaml $vflag
+ansible-playbook --extra-vars "environ=$e" clean.yaml $vflag

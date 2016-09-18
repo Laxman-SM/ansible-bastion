@@ -2,49 +2,81 @@
 - name: Create keys/region directory
   file: path=keys/{{ ec2_region }} state=directory mode=0700
 
+# create CA key if not exists
+- stat: path=keys/{{ec2_region}}/{{ gaia_ca_file }}.key
+  register: gaia_ca
 - name: create CA key
   shell: "openssl genrsa -out keys/{{ec2_region}}/{{ gaia_ca_file }}.key 2048"
   args:
     creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.key"
+  when: gaia_ca.stat.exists == False
+
+# create CA csr
+- stat: path=keys/{{ec2_region}}/{{ gaia_ca_file }}.csr
+  register: gaia_csr
 - name: create CA csr
   shell: "openssl req -sha256 -new -subj {{ gaia_ca_subj }} -key keys/{{ec2_region}}/{{ gaia_ca_file }}.key -out keys/{{ec2_region}}/{{ gaia_ca_file }}.csr"
   args:
     creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.csr"
+  when: gaia_csr.stat.exists == False
+
+# create CA crt file
+- stat: path=keys/{{ec2_region}}/{{ gaia_ca_file }}.crt
+  register: gaia_crt
 - name: create CA crt
   shell: "openssl x509 -days 3650 -signkey keys/{{ec2_region}}/{{ gaia_ca_file }}.key -in keys/{{ec2_region}}/{{ gaia_ca_file }}.csr -req -out keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
   args:
     creates: "keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
+  when: gaia_crt.stat.exists == False
 
 # generate docker registry https server certificate
+- stat: path=keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key
+  register: docker_reg_key
 - name: create server certificate key
   shell: "openssl genrsa -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key 2048"
   args:
     creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key"
+  when: docker_reg_key.stat.exists == False
+
+# generate docker registry https csr
+- stat: path=keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr
+  register: docker_reg_csr
 - name: create server certificate csr
   shell: "openssl req -sha256 -new -subj {{ docker_registry_cert_subj }} -key keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr"
   args:
     creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr"
+  when: docker_reg_csr.stat.exists == False
+
+# generate docker registry https crt
+- stat: path=keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt
+  register: docker_reg_crt
 - name: create server certificate crt
   shell: "openssl x509 -days 3650 -CA keys/{{ec2_region}}/{{ gaia_ca_file }}.crt -CAkey keys/{{ec2_region}}/{{ gaia_ca_file }}.key -set_serial 01 -in keys/{{ec2_region}}/{{ docker_registry_cert_file }}.csr -req -out keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt"
   args:
     creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt"
+  when: docker_reg_crt.stat.exists == False
 
-# bundle crt + key into 1 file for haproxy
+# bundle crt + key into 1 file for haproxy, if not exists
+- stat: path=keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem
+  register: docker_reg_pem
 - name: create server certificate pem
   shell: "cat keys/{{ec2_region}}/{{ docker_registry_cert_file }}.crt keys/{{ec2_region}}/{{ docker_registry_cert_file }}.key > keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
   args:
     creates: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
+  when: docker_reg_pem.stat.exists == False
 
 # set facts with file content for cloud-config
 - set_fact:
     gaia_ca_crt_file: "keys/{{ec2_region}}/{{ gaia_ca_file }}.crt"
 - shell: "openssl enc -base64 -A -in {{ gaia_ca_crt_file }}"
   register: gaia_ca_crt_content_out
+  changed_when: False
 - set_fact:
     gaia_ca_crt_content: "{{ gaia_ca_crt_content_out.stdout }}"
 - set_fact:
     docker_registry_pem_file: "keys/{{ec2_region}}/{{ docker_registry_cert_file }}.pem"
 - shell: "openssl enc -base64 -A -in {{ docker_registry_pem_file }}"
   register: docker_registry_pem_content_out
+  changed_when: False
 - set_fact:
     docker_registry_pem_content: "{{ docker_registry_pem_content_out.stdout }}"

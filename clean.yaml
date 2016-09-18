@@ -26,25 +26,40 @@
       vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
 
   - name: get NAT gateway id using subnet id
-    ec2_vpc_nat_gateway:
-      if_exist_do_not_create: yes
-      subnet_id: "{{ vpc_public_subnets_full[0].id }}"
-    register: nat_gateways_info
-    ignore_errors: yes
+    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
+    register: nat_gateway
+    changed_when: False
+  - set_fact:
+      nat_gateway_info: "{{ nat_gateway.stdout | from_json }}"
+  - set_fact:
+      nat_gateway_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayId }}"
+    when:
+      - nat_gateway_info.NatGateways[0] is defined
+  - set_fact:
+      nat_gateway_id: ""
+    when: nat_gateway_id is undefined
+  - set_fact:
+      nat_network_interface_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayAddresses[0].NetworkInterfaceId }}"
+    when:
+      - nat_gateway_info.NatGateways[0] is defined
+      - nat_gateway_info.NatGateways[0].NatGatewayAddresses[0] is defined
+  - set_fact:
+      nat_network_interface_id: ""
+    when: nat_network_interface_id is undefined
 
   - name: delete NAT gateways
     ec2_vpc_nat_gateway:
       state: absent
-      nat_gateway_id: "{{ nat_gateways_info.nat_gateway_id }}"
+      nat_gateway_id: "{{nat_gateway_id }}"
       release_eip: true
       wait: yes
     ignore_errors: yes
 
-  - name: deassosiate Elastic IP
+  - name: disassociate Elastic IP
     ec2_eip:
       state: absent
       region: "{{ ec2_region }}"
-      device_id: "{{ nat_gateways_info.nat_gateway_addresses[0].network_interface_id }}"
+      device_id: "{{ nat_network_interface_id }}"
       release_on_disassociation: true
     ignore_errors: yes
 
@@ -139,3 +154,4 @@
       resource_tags: "{{ vpc_resource_tags }}"
       vpc_id: "{{ vpc.vpc_id }}"
       state: absent
+      wait: yes

@@ -24,8 +24,15 @@
   set_fact:
     ubuntu_ami: "{{ find_out.results[0] }}"
 
+# get existing bastion autoscale group
+- name: get existing Bastion ASG
+  ec2_asg_facts:
+    name: "{{ bastion_asg_name }}"
+    region: "{{ ec2_region }}"
+  register: bastion_asg_info
+
 # create bastion launch configuration
-- name: create bastion launch configuration
+- name: create Bastion LC
   ec2_lc:
     name: "{{ bastion_lc_name }}"
     region: "{{ ec2_region }}"
@@ -40,9 +47,22 @@
         volume_type: standard
         volume_size: "{{ bastion_volume_size }}"
         delete_on_termination: true
+  register: lc_info
+
+# terminate previous instances of bastion ASG when LC changed
+- name: terminate previous Bastion ASG instances, if LC changed
+  ec2:
+    region: "{{ ec2_region }}"
+    state: absent
+    instance_ids: "{{ item.instance_id }}"
+    wait: yes
+  with_items: "{{ bastion_asg_info.instances }}"
+  when:
+    - not (bastion_asg_info.instances is undefined)
+    - lc_info.changed
 
 # create bastion autoscale group
-- name: create bastion autoscale group
+- name: create Bastion ASG
   ec2_asg:
     name: "{{ bastion_asg_name }}"
     region: "{{ ec2_region }}"

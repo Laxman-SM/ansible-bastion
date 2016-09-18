@@ -29,6 +29,26 @@
   set_fact:
     user_data: "{{ lookup('file', 'roles/docker_registry/templates/user-data.j2') }}"
 
+# get previously launched docker-registry EC2 instances
+- name: get existing docker-registry instances
+  ec2_remote_facts:
+    region: "{{ ec2_region }}"
+    filters:
+      vpc-id: "{{ vpc.vpc_id }}"
+      instance-state-name: running
+      tag:Name: docker-registry
+  register: docker_registry_data
+  ignore_errors: yes
+
+# terminate existing docker-registry  instances
+- name: terminate existing docker-registry instances
+  ec2:
+    region: "{{ ec2_region }}"
+    state: absent
+    instance_ids: "{{ item.id }}"
+    wait: yes
+  with_items: "{{ docker_registry_data.instances }}"
+
 # create a docker registry in each availability zone
 - ec2:
     region: "{{ ec2_region }}"
@@ -70,3 +90,4 @@
     type: A
     value: "{{ registry_ips }}"
     ttl: 7200
+    overwrite: yes

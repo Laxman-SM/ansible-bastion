@@ -10,16 +10,26 @@
   - group_vars/docker_registry.yaml
 
   vars:
-   - keys_link: ./keys
+    - keys_link: ./keys
   pre_tasks:
-   - name: collect data about ./keys
-     stat: path={{keys_link}}
-     register: k
-   - name: fail if there is no ./keys symbolic link
-     fail: msg="{{keys_link}} is not ready. Be sure you have {{keys_link}} symbolic link that points to a folder with all relevant certificates"
-     failed_when: k.stat.exists!=true or k.stat.islnk!=true
-   - name: set correct permissions on existing certificates (can be wrong after sync)
-     command: find -L {{keys_link}} -type f -exec chmod 600 {} \;
+    - name: collect data about ./keys
+      stat: path={{keys_link}}
+      register: k
+    - name: fail if there is no ./keys symbolic link
+      fail: msg="{{keys_link}} is not ready. Be sure you have {{keys_link}} symbolic link that points to a folder with all relevant certificates"
+      failed_when: k.stat.exists!=true or k.stat.islnk!=true
+    - name: get all non-hiden files
+      find:
+        paths: "{{ k.stat.lnk_source }}"
+        file_type: file
+        recurse: yes
+        hidden: False
+      register: key_files
+    - name: set correct permissions on existing certificates (can be wrong after sync)
+      file:
+        path: "{{ item.path }}"
+        mode: 0600
+      with_items: "{{ key_files.files }}"
 
   roles:
     # generate bastion key pair
@@ -33,11 +43,16 @@
 
     # create a new VPC
     - role: vpc
+      tags: [ 'vpc' ]
     # create NAT to give internet access to instances with private IP
     - role: nat
+      tags: [ 'nat', 'vpc' ]
     # create bastion EC2 autoscale group
     - role: bastion_asg
+      tags: [ 'bastion_asg' ]
     # generate https certificates for docker registry
     - role: https_certs
+      tags: [ 'https_certs' ]
     # create docker registry
     - role: docker_registry
+      tags: [ 'docker_registry' ]
