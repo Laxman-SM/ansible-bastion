@@ -1,7 +1,7 @@
 ---
 - hosts: localhost
   connection: local
-  gather_facts: False
+  gather_facts: false
   vars_files:
   - group_vars/vpc.yaml
   - group_vars/bastion.yaml
@@ -10,60 +10,73 @@
 
   # find vpc id
   - name: find vpc id
-    ec2_vpc:
+    ec2_vpc_net_facts:
       region: "{{ ec2_region }}"
-      cidr_block: "{{ vpc_cidr_block }}"
-      resource_tags: "{{ vpc_resource_tags }}"
-      internet_gateway: "{{ vpc_internet_gateway|string }}"
-      subnets: "{{ vpc_subnets }}"
-      wait: true
-    register: vpc
+      filters:
+        cidr: "{{ vpc_cidr_block }}"
+        tag:Name: bastion
+    register: vpc_facts
 
   # delete NAT gateway & Elastic IP
-
   - name: get vpc public subnets
-    set_fact:
-      vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
+    ec2_vpc_subnet_facts:
+      region: "{{ ec2_region }}"
+      filters:
+        vpc-id: "{{ vpc_facts.vpcs[0].id }}"
+        tag:tier: public
+    register: vpc_subnet_facts
+    when: vpc_facts.vpcs|length > 0
 
+  # get NAT gateway for subnet
   - name: get NAT gateway id using subnet id
-    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_public_subnets_full[0].id }}"
+    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_subnet_facts.subnets[0].id }}"
     register: nat_gateway
-    changed_when: False
-  - set_fact:
+    changed_when: false
+    when: vpc_subnet_facts.subnets is defined
+
+  # var: nat_gateway_id
+  - name: define nat_gateway_id
+    set_fact:
       nat_gateway_info: "{{ nat_gateway.stdout | from_json }}"
-  - set_fact:
+    when: nat_gateway.stdout is defined
+
+  - name: define nat_gateway_id
+    set_fact:
       nat_gateway_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayId }}"
     when:
+      - nat_gateway_info is defined
       - nat_gateway_info.NatGateways[0] is defined
-  - set_fact:
-      nat_gateway_id: ""
-    when: nat_gateway_id is undefined
-  - set_fact:
+
+  # var: nat_network_interface_id
+  - name: define nat_network_interface_id
+    set_fact:
       nat_network_interface_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayAddresses[0].NetworkInterfaceId }}"
     when:
+      - nat_gateway_info is defined
       - nat_gateway_info.NatGateways[0] is defined
       - nat_gateway_info.NatGateways[0].NatGatewayAddresses[0] is defined
-  - set_fact:
-      nat_network_interface_id: ""
-    when: nat_network_interface_id is undefined
 
+  # delete NAT gateway
   - name: delete NAT gateways
     ec2_vpc_nat_gateway:
       state: absent
-      nat_gateway_id: "{{nat_gateway_id }}"
+      nat_gateway_id: "{{ nat_gateway_id }}"
       release_eip: true
-      wait: yes
-    ignore_errors: yes
+      wait: true
+    when: nat_gateway_id is defined
+    ignore_errors: true
 
+  # release EIP
   - name: disassociate Elastic IP
     ec2_eip:
       state: absent
       region: "{{ ec2_region }}"
       device_id: "{{ nat_network_interface_id }}"
       release_on_disassociation: true
-    ignore_errors: yes
+    when: nat_network_interface_id is defined
+    ignore_errors: true
 
-  # delete bastion machines
+  # delete Bastion ASG
   - name: remove autoscale groups for bastion
     ec2_asg:
       region: "{{ ec2_region }}"
@@ -72,8 +85,9 @@
       state: absent
     with_items:
       - { name: "{{ bastion_asg_name }}", lc_name: "{{ bastion_lc_name }}" }
-    ignore_errors: yes
+    ignore_errors: true
 
+  # delete Bastion LC
   - name: remove launch configurations for bastion
     ec2_lc:
       region: "{{ ec2_region }}"
@@ -82,56 +96,64 @@
       state: absent
     with_items:
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
-    ignore_errors: yes
+    ignore_errors: true
 
-  # delete Docker registry machines
-
+  # get Docker registry machines
   - name: get docker-registry instances
     ec2_remote_facts:
       region: "{{ ec2_region }}"
       filters:
-        vpc-id: "{{ vpc.vpc_id }}"
+        vpc-id: "{{ vpc_facts.vpcs[0].id }}"
         instance-state-name: running
         tag:Name: docker-registry
     register: docker_registry_data
-    ignore_errors: yes
+    when: vpc_facts.vpcs|length > 0
+    ignore_errors: true
 
+  # delete Docker registry machines
   - name: terminate docker-registry instances
     ec2:
       region: "{{ ec2_region }}"
       state: absent
       instance_ids: "{{ item.id }}"
-      wait: yes
+      wait: true
     with_items: "{{ docker_registry_data.instances }}"
+    when: docker_registry_data.instances is defined
+    ignore_errors: true
 
   # delete DNS zone
-  - route53:
+  - name: get DNS zone records
+    route53:
       command: get
       zone: "{{ vpc_dns_zone }}"
-      private_zone: True
+      private_zone: true
       record: "docker-registry.{{ vpc_dns_zone }}"
       type: A
     register: rec
-    ignore_errors: yes
+    ignore_errors: true
 
   - name: delete DNS records
     route53:
       command: delete
       zone: "{{ vpc_dns_zone }}"
-      private_zone: True
+      private_zone: true
       record: "{{ rec.set.record }}"
       ttl: "{{ rec.set.ttl }}"
       type: "{{ rec.set.type }}"
       value: "{{ rec.set.value }}"
-    when: "{{ 'set' in rec and rec.set | length > 0 }}"
+    when:
+      - "{{ 'set' in rec and rec.set | length > 0 }}"
+      - not rec.failed
+    ignore_errors: true
 
   - name: delete DNS zone
     route53_zone:
-      vpc_id: "{{ vpc.vpc_id }}"
+      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
       vpc_region: "{{ ec2_region }}"
       zone: "{{ vpc_dns_zone }}"
       state: absent
-    ignore_errors: yes
+    when: vpc_facts.vpcs|length > 0
+    ignore_errors: true
 
   # delete security groups
   - name: delete all security groups
@@ -139,12 +161,13 @@
       region: "{{ ec2_region }}"
       name: "{{ item.name }}"
       description: "{{ item.description }}"
-      vpc_id: "{{ vpc.vpc_id }}"
+      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
       state: absent
     with_items:
       - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
       - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
-    ignore_errors: yes
+    when: vpc_facts.vpcs|length > 0
+    ignore_errors: true
 
   # delete VPC
   - name: delete VPC
@@ -152,6 +175,7 @@
       region: "{{ ec2_region }}"
       cidr_block: "{{ vpc_cidr_block }}"
       resource_tags: "{{ vpc_resource_tags }}"
-      vpc_id: "{{ vpc.vpc_id }}"
+      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
       state: absent
-      wait: yes
+      wait: true
+    when: vpc_facts.vpcs|length > 0
