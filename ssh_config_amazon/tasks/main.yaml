@@ -1,0 +1,50 @@
+---
+- include_vars: group_vars/vpc.yaml
+
+# these tasks generate ssh.config for deployment from localhost to amazon
+- set_fact:
+    work_dir: "{{ lookup('env', 'PWD') }}"
+
+# detect bastion information
+- name: describe Bastion instances
+  ec2_remote_facts:
+    filters:
+      instance-state-name: running
+      tag:Name: bastion
+      tag:env: "{{ environ }}"
+  register: bastion_facts
+
+- name: bastion proxy (first instance)
+  set_fact:
+    bastion_proxy: "{{ bastion_facts.instances[0].public_dns_name }}"
+  when: bastion_facts.instances is defined
+
+- name: bastion DNS names
+  set_fact:
+    bastions_dns_names: "{{ bastion_facts.instances | map(attribute='public_dns_name') | list | join(' ') }}"
+  when: bastion_facts.instances is defined
+
+# detect docker registry information
+- name: describe docker registry instances
+  ec2_remote_facts:
+    filters:
+      instance-state-name: running
+      tag:Name: docker-registry
+      tag:env: "{{ environ }}"
+  register: registry_facts
+
+- name: docker registry private IP addresses
+  set_fact:
+    registry_private_ips: "{{ registry_facts.instances | map(attribute='private_ip_address') | list | join(' ') }}"
+  when: registry_facts.instances is defined
+
+# generate ssh_config from template
+- name: generate ssh_config
+  template: src='ssh_config.j2' dest='{{ work_dir }}/keys/{{ ec2_region }}/{{ ssh_config_file }}'
+  when:
+    - bastions_dns_names is defined
+    - registry_private_ips is defined
+
+# generate symlink to ssh_config and place it into project folder (this symlink is in .gitignore)
+- name: Create symlink to ssh_config
+  file: src='{{ work_dir }}/keys/{{ ec2_region }}/{{ ssh_config_file }}' dest='{{ work_dir }}/.ssh_config' state=link

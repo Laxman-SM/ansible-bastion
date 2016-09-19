@@ -5,13 +5,6 @@ Gaia Bastion is used to control Gaia cluster deployed on AWS.
 Bastion environment is a HA cluster of similarly configured EC2 machines, accessible only through SSH.
 Baction machine inventory:
 - Ubuntu LTS server (currently "trusty" 14.04)
-- pip
-- git
-- docker
-- Python modules
-  - ansible
-  - awscli
-  - boto
 
 # setup environment
 
@@ -66,5 +59,3 @@ to cleanup previously created environment, run the following code
 ```
 clean.sh -e production|develop|custom
 ```
-
-if clean.yaml is invoked directly, EC2_INI_PATH must be setup to point to inventory/ec2_priv.ini since for cleanup private IPs are needed

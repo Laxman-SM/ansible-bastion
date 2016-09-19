@@ -1,0 +1,4 @@
+---
+ssh_config_file: "ssh_config_bastion_{{ env_nick[environ] }}"
+bastion_user: "ubuntu"
+coreos_user: "core"

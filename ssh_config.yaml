@@ -1,0 +1,14 @@
+---
+# Create Bastion VPC and autoscale groups
+- name: Provision VPC and machines
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  vars_files:
+  - group_vars/vpc.yaml
+  - group_vars/bastion.yaml
+  - group_vars/docker_registry.yaml
+  
+  roles:
+    # create docker registry
+    - role: ssh_config_amazon

@@ -1,0 +1,21 @@
+# bastion
+Host {{ bastions_dns_names }}
+    User {{ bastion_user }}
+    ForwardAgent yes
+    StrictHostKeyChecking no
+    PasswordAuthentication no
+    UserKnownHostsFile /dev/null
+    IdentityFile ./keys/{{ ec2_region }}/{{ bastion_keypair_file }}
+    BatchMode yes
+# docker-registry cluster
+Host {{ registry_private_ips }}
+    User {{ coreos_user }}
+    StrictHostKeyChecking no
+    PasswordAuthentication no
+    ServerAliveInterval 60
+    TCPKeepAlive yes
+    ControlMaster auto
+    ControlPath ~/.ssh/mux-%r@%h:%p
+    ControlPersist 10m
+    ProxyCommand ssh -q -A -t -F ./keys/{{ ec2_region }}/{{ ssh_config_file }} {{ bastion_user }}@{{ bastion_proxy }} -W %h:%p
+    IdentityFile ./keys/{{ ec2_region }}/{{ docker_registry_keypair_file }}
