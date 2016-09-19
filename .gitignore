@@ -8,3 +8,4 @@ keys/
 keys
 try.yaml
 .idea
+.ssh_config
