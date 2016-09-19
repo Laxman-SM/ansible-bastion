@@ -30,6 +30,7 @@
         path: "{{ item.path }}"
         mode: 0600
       with_items: "{{ key_files.files }}"
+      tags: [ 'skip' ]
 
   roles:
     # generate bastion key pair
@@ -43,16 +44,13 @@
 
     # create a new VPC
     - role: vpc
-      tags: [ 'vpc' ]
     # create NAT to give internet access to instances with private IP
     - role: nat
-      tags: [ 'nat', 'vpc' ]
+      tags: [ 'skip' ]
     # create bastion EC2 autoscale group
     - role: bastion_asg
-      tags: [ 'bastion_asg' ]
+      tags: [ 'skip' ]
     # generate https certificates for docker registry
     - role: https_certs
-      tags: [ 'https_certs' ]
     # create docker registry
     - role: docker_registry
-      tags: [ 'docker_registry' ]

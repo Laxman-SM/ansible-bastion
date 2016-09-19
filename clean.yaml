@@ -98,27 +98,26 @@
       - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
     ignore_errors: true
 
-  # get Docker registry machines
-  - name: get docker-registry instances
-    ec2_remote_facts:
+  # delete Docker Registry ASG
+  - name: remove autoscale groups for docker registry
+    ec2_asg:
       region: "{{ ec2_region }}"
-      filters:
-        vpc-id: "{{ vpc_facts.vpcs[0].id }}"
-        instance-state-name: running
-        tag:Name: docker-registry
-    register: docker_registry_data
-    when: vpc_facts.vpcs|length > 0
+      name: "{{ item.name }}"
+      launch_config_name: "{{ item.lc_name }}"
+      state: absent
+    with_items:
+      - { name: "{{ docker_registry_asg_name }}", lc_name: "{{ docker_registry_asg_name }}" }
     ignore_errors: true
 
-  # delete Docker registry machines
-  - name: terminate docker-registry instances
-    ec2:
+  # delete Docker Registry LC
+  - name: remove launch configurations for docker registry
+    ec2_lc:
       region: "{{ ec2_region }}"
+      name: "{{ item.name }}"
+      instance_type: "{{ item.type }}"
       state: absent
-      instance_ids: "{{ item.id }}"
-      wait: true
-    with_items: "{{ docker_registry_data.instances }}"
-    when: docker_registry_data.instances is defined
+    with_items:
+      - { name: "{{ docker_registry_lc_name }}", type: "{{ docker_registry_instance_type }}" }
     ignore_errors: true
 
   # delete DNS zone
@@ -178,4 +177,9 @@
       vpc_id: "{{ vpc_facts.vpcs[0].id }}"
       state: absent
       wait: true
+    register: task_result
     when: vpc_facts.vpcs|length > 0
+    until: task_result.changed
+    retries: 10
+    delay: 30
+    ignore_errors: true

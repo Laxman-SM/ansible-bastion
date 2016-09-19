@@ -14,6 +14,8 @@
     nat_network_interface_id: ""
   when: nat_network_interface_id is undefined
 
+- debug: var=nat_network_interface_id
+
 # Create new Elastic IP
 - name: Allocate a new elastic IP without associating it to anything
   ec2_eip:
@@ -25,6 +27,8 @@
     reuse_existing_ip_allowed: true
   register: elastic_ip_info
 
+- debug: var=elastic_ip_info
+
 # Create new NAT service
 - name: Create new NAT Gateway service using an allocation-id
   ec2_vpc_nat_gateway:
@@ -35,6 +39,8 @@
     region: "{{ ec2_region }}"
     wait: yes
   register: nat_gateway_info
+
+- debug: var=nat_gateway_info
 
 # Update VPC routeing tables
 - name: update vpc routing tables
@@ -56,3 +62,4 @@
             gw: "{{ nat_gateway_info.nat_gateway_id }}"
         resource_tags: "{{ vpc_route_tables_tags }}"
   register: ec2_vpc_out
+  when: nat_gateway_info.changed

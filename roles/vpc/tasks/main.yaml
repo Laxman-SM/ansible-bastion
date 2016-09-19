@@ -13,6 +13,7 @@
 - name: get vpc public subnets
   set_fact:
     vpc_public_subnets: "{{ vpc.subnets | get_subnets('tier', 'public') }}"
+    vpc_private_subnets: "{{ vpc.subnets | get_subnets('tier', 'private') }}"
     vpc_public_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'public') }}"
     vpc_private_subnets_full: "{{ vpc.subnets | get_subnets_full('tier', 'private') }}"
 

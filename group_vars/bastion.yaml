@@ -21,7 +21,6 @@ bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "{{ environ 
 
 bastion_lc_name: "bastion-lc-{{ env_nick[environ] }}"
 bastion_asg_name: "bastion-asg-{{ env_nick[environ] }}"
-bastion_asg_group_name: "tag_aws_autoscaling_groupName_bastion_asg_{{ env_nick[environ] }}"
 bastion_health_check_period: 60
 bastion_cluster_size: 2
 bastion_min_cluster_size: 2

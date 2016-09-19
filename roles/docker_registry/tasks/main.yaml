@@ -27,56 +27,58 @@
 # generate user-data from template
 - name: load user-data content
   set_fact:
-    user_data: "{{ lookup('file', 'roles/docker_registry/templates/user-data.j2') }}"
+    user_data: "{{ lookup('template', 'roles/docker_registry/templates/user-data.j2') | b64encode }}"
 
-# get previously launched docker-registry EC2 instances
-- name: get existing docker-registry instances
-  ec2_remote_facts:
-    region: "{{ ec2_region }}"
-    filters:
-      vpc-id: "{{ vpc.vpc_id }}"
-      instance-state-name: running
-      tag:Name: docker-registry
-  register: docker_registry_data
-  ignore_errors: yes
-
-# terminate existing docker-registry  instances
-- name: terminate existing docker-registry instances
-  ec2:
-    region: "{{ ec2_region }}"
-    state: absent
-    instance_ids: "{{ item.id }}"
-    wait: yes
-  with_items: "{{ docker_registry_data.instances }}"
-
-# create a docker registry in each availability zone
-- ec2:
+# create Docker registry launch configuration
+- name: create Docker Registry LC
+  ec2_lc:
+    name: "{{ docker_registry_lc_name }}"
     region: "{{ ec2_region }}"
     key_name: "{{ docker_registry_keypair_name }}"
-    image: "{{ coreos_ami.ami_id }}"
-    group_id: "{{ docker_registry_sg.group_id }}"
+    image_id: "{{ coreos_ami.ami_id }}"
+    security_groups: ["{{ docker_registry_sg.group_id }}"]
     instance_type: "{{ docker_registry_instance_type }}"
-    wait: yes
-    count: 1
-    vpc_subnet_id: "{{ item.id }}"
-    zone: "{{ item.az }}"
-    instance_tags: "{{ docker_registry_instance_tags }}"
-    monitoring: yes
+    assign_public_ip: false
+    instance_monitoring: true
     user_data: "{{ user_data }}"
     volumes:
       - device_name: /dev/xvda
         volume_type: standard
         volume_size: "{{ docker_registry_volume_size }}"
         delete_on_termination: true
-  register: ec2_out
-  with_items: "{{ vpc_private_subnets_full }}"
+  register: registry_lc
 
-# get IPs of registries in a list
-- set_fact:
-    registry_ip: "{{ item.instances[0].private_ip }}"
-  with_items: "{{ ec2_out.results }}"
+# create Docker Registry autoscale group
+- name: create docker registry ASG
+  ec2_asg:
+    name: "{{ docker_registry_asg_name }}"
+    region: "{{ ec2_region }}"
+    launch_config_name: "{{ docker_registry_lc_name }}"
+    health_check_period: "{{ docker_registry_health_check_period }}"
+    desired_capacity: "{{ docker_registry_cluster_size }}"
+    min_size: "{{ docker_registry_min_cluster_size }}"
+    max_size: "{{ docker_registry_max_cluster_size }}"
+    tags: "{{ docker_registry_instance_tags }}"
+    vpc_zone_identifier: "{{ vpc_private_subnets }}"
+    wait_for_instances: true
+  register: registry_asg
+
+# get IP addresses of all instances from registry ASG
+- name: get facts for all docker registry instances
+  ec2_remote_facts:
+    filters:
+      instance-id: "{{ item }}"
+  register: registry_instance
+  with_items: registry_asg.instances
+
+- name: get private IP address for all docker registry instances
+  set_fact:
+    registry_ip: "{{ item.instances[0].private_ip_address }}"
+  with_items: "{{ registry_instance.results }}"
   register: registry_ip_out
-- set_fact:
+
+- name: combile docker registry IP addresses into single list
+  set_fact:
     registry_ips: "{{ registry_ip_out.results | map(attribute='ansible_facts.registry_ip') | list | join(',') }}"
 
 - name: setup docker-registry DNS records
@@ -90,4 +92,4 @@
     type: A
     value: "{{ registry_ips }}"
     ttl: 7200
-    overwrite: yes
+    overwrite: true
