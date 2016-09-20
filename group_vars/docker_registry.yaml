@@ -24,12 +24,13 @@ gaia_ca_subj: "/C=/ST=/L=/O=/CN={{ vpc_dns_zone }}"
 docker_registry_cert_file: "docker-registry.{{ vpc_dns_zone }}"
 docker_registry_cert_subj: "/C=/ST=/L=/O=/CN=docker-registry.{{ vpc_dns_zone }}"
 
-docker_registry_lc_name: "registry-lc-{{ env_nick[environ] }}"
+docker_registry_update_lc: true
+docker_registry_lc_name: "registry-lc-{{ env_nick[environ] }}-"
 docker_registry_asg_name: "registry-asg-{{ env_nick[environ] }}"
 docker_registry_health_check_period: 60
 docker_registry_cluster_size: 2
 docker_registry_min_cluster_size: 2
-docker_registry_max_cluster_size: 2
+docker_registry_max_cluster_size: 4
 
 docker_registry_instance_type: "{{ instance_type.docker_registry[environ] }}"
 docker_registry_instance_tags: [ "Name": "docker-registry", "env": "{{ environ}}", "group": "gaia", "type": "docker-registry-vm", "decription": "Docker Registry Node" ]

@@ -24,17 +24,36 @@
   set_fact:
     ubuntu_ami: "{{ find_out.results[0] }}"
 
-# get existing bastion autoscale group
-- name: get existing Bastion ASG
-  ec2_asg_facts:
-    name: "{{ bastion_asg_name }}"
+# create new name for (potentially) updated LC
+- name: create new LC name [prefix + random (1..9999)]
+  set_fact:
+    new_lc_name: "{{ bastion_lc_name + 9999|random|string }}"
+
+# get all LC within current region with name prefix
+- name: find all docker-registry launch configurations in the region
+  ec2_lc_find:
+    name_regex: "{{ bastion_lc_name + '*' }}"
     region: "{{ ec2_region }}"
-  register: bastion_asg_info
+  register: bastion_lcs
+
+# check if update/create is required, only if some check is different
+- name: check update required
+  set_fact:
+    bastion_update_lc: false
+  when:
+    # if there are LC
+    - bastion_lcs.results|length > 0
+    # and same image id
+    - bastion_lcs.results[0].image_id == ubuntu_ami.ami_id
+    # and same instance type
+    - bastion_lcs.results[0].instance_type == bastion_instance_type
+    # and same key name
+    - bastion_lcs.results[0].keyname == bastion_keypair_name
 
 # create bastion launch configuration
 - name: create Bastion LC
   ec2_lc:
-    name: "{{ bastion_lc_name }}"
+    name: "{{ new_lc_name }}"
     region: "{{ ec2_region }}"
     key_name: "{{ bastion_keypair_name }}"
     image_id: "{{ ubuntu_ami.ami_id }}"
@@ -47,31 +66,32 @@
         volume_type: standard
         volume_size: "{{ bastion_volume_size }}"
         delete_on_termination: true
-  register: lc_info
-
-# terminate previous instances of bastion ASG when LC changed
-- name: terminate previous Bastion ASG instances, if LC changed
-  ec2:
-    region: "{{ ec2_region }}"
-    state: absent
-    instance_ids: "{{ item.instance_id }}"
-    wait: yes
-  with_items: "{{ bastion_asg_info.instances }}"
-  when:
-    - not (bastion_asg_info.instances is undefined)
-    - lc_info.changed
+  register: bastion_lc
+  when: bastion_update_lc
 
 # create bastion autoscale group
 - name: create Bastion ASG
   ec2_asg:
     name: "{{ bastion_asg_name }}"
     region: "{{ ec2_region }}"
-    launch_config_name: "{{ bastion_lc_name }}"
+    launch_config_name: "{{ new_lc_name }}"
     health_check_period: "{{ bastion_health_check_period }}"
     desired_capacity: "{{ bastion_cluster_size }}"
     min_size: "{{ bastion_min_cluster_size }}"
     max_size: "{{ bastion_max_cluster_size }}"
     tags: "{{ bastion_instance_tags }}"
+    replace_all_instances: yes
+    replace_batch_size: 1
     vpc_zone_identifier: "{{ vpc_public_subnets }}"
     wait_for_instances: yes
   register: asg_out
+  when: bastion_update_lc
+
+# delete old LC if updated
+- name: delete old LC
+  ec2_lc:
+    name: "{{ item.name }}"
+    instance_type: "{{ item.instance_type }}"
+    state: absent
+  with_items: "{{ bastion_lcs.results }}"
+  when: bastion_update_lc

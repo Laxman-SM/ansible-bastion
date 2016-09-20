@@ -19,7 +19,8 @@ bastion_instance_type: "{{ instance_type.bastion[environ] }}"
 bastion_image_name: "ubuntu/images/hvm-ssd/ubuntu-trusty-*"
 bastion_instance_tags: [ "Name": "bastion", "group": "gaia", "env": "{{ environ }}", "type": "bastion-vm" ]
 
-bastion_lc_name: "bastion-lc-{{ env_nick[environ] }}"
+bastion_update_lc: true
+bastion_lc_name: "bastion-lc-{{ env_nick[environ] }}-"
 bastion_asg_name: "bastion-asg-{{ env_nick[environ] }}"
 bastion_health_check_period: 60
 bastion_cluster_size: 2

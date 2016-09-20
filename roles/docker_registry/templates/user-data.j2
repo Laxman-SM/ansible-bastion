@@ -118,13 +118,13 @@ coreos:
       ExecStartPre=-/bin/mkdir /docker-cache
       ExecStartPre=-/usr/bin/docker kill docker-registry
       ExecStartPre=-/usr/bin/docker rm docker-registry
-      ExecStartPre=/usr/bin/docker pull distribution/registry:2.1.1
+      ExecStartPre=/usr/bin/docker pull registry:2.5.1
       ExecStart=/usr/bin/docker run \
       --name docker-registry \
       -v /docker-cache:/docker-cache \
       -v /etc/docker/registry/config.yml:/etc/docker/registry/config.yml \
       -p 5000:5000 \
-      distribution/registry:2.1.1
+      registry:2.5.1
       # Stop
       ExecStop=/usr/bin/docker stop docker-registry
       [Install]
@@ -153,7 +153,7 @@ coreos:
       ## Directives with "=-" are allowed to fail without consequence
       ExecStartPre=-/usr/bin/docker kill haproxy
       ExecStartPre=-/usr/bin/docker rm haproxy
-      ExecStartPre=/bin/bash -a -c 'SERVER_IP=`docker inspect --format "{{ '{{ .NetworkSettings.IPAddress }}' }}" docker-registry` && sed "s/SERVER_IP/$SERVER_IP/g" /etc/haproxy/haproxy.cfg.tmpl > /etc/haproxy/haproxy.cfg'
+      ExecStartPre=/bin/bash -a -c 'SERVER_IP=`docker exec -it docker-registry ifconfig eth0 | grep "inet addr" | cut -d ":" -f 2 | cut -d " " -f 1` && sed "s/SERVER_IP/$SERVER_IP/g" /etc/haproxy/haproxy.cfg.tmpl > /etc/haproxy/haproxy.cfg'
       ExecStartPre=/usr/bin/docker pull haproxy:1.5.14
       ExecStart=/usr/bin/docker run \
       --restart=always \

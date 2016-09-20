@@ -109,15 +109,21 @@
       - { name: "{{ docker_registry_asg_name }}", lc_name: "{{ docker_registry_asg_name }}" }
     ignore_errors: true
 
+  # get all LC within current region with name prefix
+  - name: find all docker-registry launch configurations in the region
+    ec2_lc_find:
+      name_regex: "{{ docker_registry_lc_name + '*' }}"
+      region: "{{ ec2_region }}"
+    register: lcs
+
   # delete Docker Registry LC
-  - name: remove launch configurations for docker registry
+  - name: remove all launch configurations for docker registry
     ec2_lc:
       region: "{{ ec2_region }}"
       name: "{{ item.name }}"
-      instance_type: "{{ item.type }}"
+      instance_type: "{{ item.instance_type }}"
       state: absent
-    with_items:
-      - { name: "{{ docker_registry_lc_name }}", type: "{{ docker_registry_instance_type }}" }
+    with_items: {{ lcs.results }}
     ignore_errors: true
 
   # delete DNS zone
@@ -142,7 +148,6 @@
       value: "{{ rec.set.value }}"
     when:
       - "{{ 'set' in rec and rec.set | length > 0 }}"
-      - not rec.failed
     ignore_errors: true
 
   - name: delete DNS zone
@@ -177,9 +182,9 @@
       vpc_id: "{{ vpc_facts.vpcs[0].id }}"
       state: absent
       wait: true
-    register: task_result
+    register: result
     when: vpc_facts.vpcs|length > 0
-    until: task_result.changed
+    until: result|success
     retries: 10
     delay: 30
     ignore_errors: true

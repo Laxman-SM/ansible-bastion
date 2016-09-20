@@ -11,7 +11,7 @@
     - nat_gateway_info.NatGateways[0] is defined
     - nat_gateway_info.NatGateways[0].NatGatewayAddresses[0] is defined
 - set_fact:
-    nat_network_interface_id: ""
+    nat_network_interface_id: null
   when: nat_network_interface_id is undefined
 
 - debug: var=nat_network_interface_id
