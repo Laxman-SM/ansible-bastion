@@ -76,37 +76,31 @@
     when: nat_network_interface_id is defined
     ignore_errors: true
 
+  # get all bastion LC within current region with name prefix
+  - name: find all bastion launch configurations in the region
+    ec2_lc_find:
+      name_regex: "{{ bastion_lc_name + '*' }}"
+      region: "{{ ec2_region }}"
+    register: bastion_lcs
+
   # delete Bastion ASG
   - name: remove autoscale groups for bastion
     ec2_asg:
       region: "{{ ec2_region }}"
-      name: "{{ item.name }}"
-      launch_config_name: "{{ item.lc_name }}"
+      name: "{{ bastion_asg_name }}"
+      launch_config_name: "{{ item.name }}"
       state: absent
-    with_items:
-      - { name: "{{ bastion_asg_name }}", lc_name: "{{ bastion_lc_name }}" }
+    with_items: "{{ bastion_lcs.results }}"
     ignore_errors: true
 
-  # delete Bastion LC
-  - name: remove launch configurations for bastion
+  # delete bastion LC
+  - name: remove all launch configurations for bastion
     ec2_lc:
       region: "{{ ec2_region }}"
       name: "{{ item.name }}"
-      instance_type: "{{ item.type }}"
+      instance_type: "{{ item.instance_type }}"
       state: absent
-    with_items:
-      - { name: "{{ bastion_lc_name }}", type: "{{ bastion_instance_type }}" }
-    ignore_errors: true
-
-  # delete Docker Registry ASG
-  - name: remove autoscale groups for docker registry
-    ec2_asg:
-      region: "{{ ec2_region }}"
-      name: "{{ item.name }}"
-      launch_config_name: "{{ item.lc_name }}"
-      state: absent
-    with_items:
-      - { name: "{{ docker_registry_asg_name }}", lc_name: "{{ docker_registry_asg_name }}" }
+    with_items: "{{ bastion_lcs.results }}"
     ignore_errors: true
 
   # get all LC within current region with name prefix
@@ -114,7 +108,17 @@
     ec2_lc_find:
       name_regex: "{{ docker_registry_lc_name + '*' }}"
       region: "{{ ec2_region }}"
-    register: lcs
+    register: dr_lcs
+
+  # delete Docker Registry ASG
+  - name: remove autoscale groups for docker registry
+    ec2_asg:
+      region: "{{ ec2_region }}"
+      name: "{{ docker_registry_asg_name }}"
+      launch_config_name: "{{ item.name }}"
+      state: absent
+    with_items: "{{ dr_lcs.results }}"
+    ignore_errors: true
 
   # delete Docker Registry LC
   - name: remove all launch configurations for docker registry
@@ -123,7 +127,7 @@
       name: "{{ item.name }}"
       instance_type: "{{ item.instance_type }}"
       state: absent
-    with_items: {{ lcs.results }}
+    with_items: "{{ dr_lcs.results }}"
     ignore_errors: true
 
   # delete DNS zone
