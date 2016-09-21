@@ -1,0 +1,63 @@
+---
+# get DNS zone records
+- name: get DNS zone records
+  route53:
+    command: get
+    zone: "{{ vpc_dns_zone }}"
+    private_zone: true
+    record: "docker-registry.{{ vpc_dns_zone }}"
+    type: A
+  register: rec
+  ignore_errors: true
+
+# delete DNS records
+- name: delete DNS records
+  route53:
+    command: delete
+    zone: "{{ vpc_dns_zone }}"
+    private_zone: true
+    record: "{{ rec.set.record }}"
+    ttl: "{{ rec.set.ttl }}"
+    type: "{{ rec.set.type }}"
+    value: "{{ rec.set.value }}"
+  when:
+    - "{{ 'set' in rec and rec.set | length > 0 }}"
+  ignore_errors: true
+
+# get all LC within current region with name prefix
+- name: find all docker-registry launch configurations in the region
+  ec2_lc_find:
+    name_regex: "{{ docker_registry_lc_name + '*' }}"
+    region: "{{ ec2_region }}"
+  register: dr_lcs
+
+# delete Docker Registry ASG
+- name: remove autoscale groups for docker registry
+  ec2_asg:
+    region: "{{ ec2_region }}"
+    name: "{{ docker_registry_asg_name }}"
+    launch_config_name: "{{ item.name }}"
+    state: absent
+  with_items: "{{ dr_lcs.results }}"
+  ignore_errors: true
+
+# delete Docker Registry LC
+- name: remove all launch configurations for docker registry
+  ec2_lc:
+    region: "{{ ec2_region }}"
+    name: "{{ item.name }}"
+    instance_type: "{{ item.instance_type }}"
+    state: absent
+  with_items: "{{ dr_lcs.results }}"
+  ignore_errors: true
+
+# delete docker registry security groups
+- name: delete docker registry security groups
+  ec2_group:
+    region: "{{ ec2_region }}"
+    name: "{{ docker_registry_security_group.name }}"
+    description: "{{ docker_registry_security_group.desc }}"
+    vpc_id: "{{ vpc_facts.vpcs[0].id }}"
+    state: absent
+  when: vpc_facts.vpcs|length > 0
+  ignore_errors: true

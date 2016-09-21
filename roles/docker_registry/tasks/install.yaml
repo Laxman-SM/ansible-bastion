@@ -1,0 +1,149 @@
+# provision docker registry
+- name: Create the security group for the CoreOS cluster
+  ec2_group:
+    name: "{{ docker_registry_security_group.name }}"
+    description: "{{ docker_registry_security_group.desc }}"
+    vpc_id: "{{ vpc.vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules: "{{ docker_registry_security_group.rules }}"
+  register: docker_registry_sg
+
+# search for latest CoreOS AMI from alpha/beta/stable channel
+- name: search for the latest CoreOS AMI image from "{{ coreos_channel }}"
+  ec2_ami_find:
+    region: "{{ ec2_region }}"
+    name: "CoreOS-{{coreos_channel}}-{{coreos_version}}-hvm"
+    virtualization_type: hvm
+    sort: name
+    sort_order: descending
+    sort_end: 1
+    no_result_action: fail
+  register: find_out
+
+- name: get CoreOS AMI
+  set_fact:
+    coreos_ami: "{{ find_out.results[0] }}"
+
+# generate user-data from template
+- name: load user-data content
+  set_fact:
+    user_data: "{{ lookup('template', 'roles/docker_registry/templates/user-data.j2') }}"
+
+# create new name for (potentially) updated LC
+- name: create new LC name [prefix + random (1..9999)]
+  set_fact:
+    new_lc_name: "{{ docker_registry_lc_name + 9999|random|string }}"
+
+# get all LC within current region with name prefix
+- name: find all docker-registry launch configurations in the region
+  ec2_lc_find:
+    name_regex: "{{ docker_registry_lc_name + '*' }}"
+    region: "{{ ec2_region }}"
+  register: dr_lcs
+
+# check if update/create is required, only if some check is different
+- name: check update required
+  set_fact:
+    docker_registry_update_lc: false
+  when:
+    # if there are LC
+    - dr_lcs.results|length > 0
+    # and same image id
+    - dr_lcs.results[0].image_id == coreos_ami.ami_id
+    # and same user_data
+    - (dr_lcs.results[0].user_data | b64decode) == user_data
+    # and same instance type
+    - dr_lcs.results[0].instance_type == docker_registry_instance_type
+    # and same key name
+    - dr_lcs.results[0].keyname == docker_registry_keypair_name
+
+# create Docker registry launch configuration
+- name: create Docker Registry LC
+  ec2_lc:
+    name: "{{ new_lc_name }}"
+    region: "{{ ec2_region }}"
+    key_name: "{{ docker_registry_keypair_name }}"
+    image_id: "{{ coreos_ami.ami_id }}"
+    security_groups: ["{{ docker_registry_sg.group_id }}"]
+    instance_type: "{{ docker_registry_instance_type }}"
+    assign_public_ip: false
+    instance_monitoring: true
+    user_data: "{{ user_data }}"
+    volumes:
+      - device_name: /dev/xvda
+        volume_type: standard
+        volume_size: "{{ docker_registry_volume_size }}"
+        delete_on_termination: true
+  register: registry_lc
+  when: docker_registry_update_lc
+
+# create Docker Registry autoscale group
+- name: create docker registry ASG
+  ec2_asg:
+    name: "{{ docker_registry_asg_name }}"
+    region: "{{ ec2_region }}"
+    launch_config_name: "{{ new_lc_name }}"
+    health_check_period: "{{ docker_registry_health_check_period }}"
+    desired_capacity: "{{ docker_registry_cluster_size }}"
+    min_size: "{{ docker_registry_min_cluster_size }}"
+    max_size: "{{ docker_registry_max_cluster_size }}"
+    tags: "{{ docker_registry_instance_tags }}"
+    replace_all_instances: yes
+    replace_batch_size: 1
+    vpc_zone_identifier: "{{ vpc_private_subnets }}"
+    wait_for_instances: true
+    wait_timeout: 600
+  register: registry_asg
+  when: docker_registry_update_lc
+
+# delete old LC if updated
+- name: delete old LC
+  ec2_lc:
+    name: "{{ item.name }}"
+    instance_type: "{{ item.instance_type }}"
+    state: absent
+  with_items: "{{ dr_lcs.results }}"
+  when: docker_registry_update_lc
+
+# get IP addresses of all instances from registry ASG
+- name: get facts for all docker registry instances
+  ec2_remote_facts:
+    filters:
+      instance-id: "{{ item }}"
+  register: registry_instance
+  with_items: "{{ registry_asg.instances }}"
+  when:
+    - registry_asg is defined
+    - registry_asg.instances is defined
+
+- name: get private IP address for all docker registry instances
+  set_fact:
+    registry_ip: "{{ item.instances[0].private_ip_address }}"
+  with_items: "{{ registry_instance.results }}"
+  register: registry_ip_out
+  when:
+    - registry_instance is defined
+    - registry_instance.results is defined
+
+- name: combile docker registry IP addresses into single list
+  set_fact:
+    registry_ips: "{{ registry_ip_out.results | map(attribute='ansible_facts.registry_ip') | list | join(',') }}"
+  when:
+    - registry_ip_out is defined
+    - registry_ip_out.results is defined
+
+- name: setup docker-registry DNS records
+  route53:
+    command: create
+    vpc_id: "{{ vpc.vpc_id }}"
+    private_zone: True
+    zone: "{{ vpc_dns_zone }}"
+    hosted_zone_id: "{{ zone_out.set.zone_id }}"
+    record: "docker-registry.{{ vpc_dns_zone }}"
+    type: A
+    value: "{{ registry_ips }}"
+    ttl: 7200
+    overwrite: true
+  when:
+    - registry_ips is defined
+    - registry_ips|length > 0

@@ -3,7 +3,7 @@
 - name: Provision VPC and machines
   hosts: localhost
   connection: local
-  gather_facts: False
+  gather_facts: false
   vars_files:
   - group_vars/vpc.yaml
   - group_vars/bastion.yaml
@@ -15,9 +15,11 @@
     - name: collect data about ./keys
       stat: path={{keys_link}}
       register: k
+      tags: [ 'install' ]
     - name: fail if there is no ./keys symbolic link
       fail: msg="{{keys_link}} is not ready. Be sure you have {{keys_link}} symbolic link that points to a folder with all relevant certificates"
       failed_when: k.stat.exists!=true or k.stat.islnk!=true
+      tags: [ 'install' ]
     - name: get all non-hiden files
       find:
         paths: "{{ k.stat.lnk_source }}"
@@ -25,32 +27,34 @@
         recurse: yes
         hidden: False
       register: key_files
+      tags: [ 'install' ]
     - name: set correct permissions on existing certificates (can be wrong after sync)
       file:
         path: "{{ item.path }}"
         mode: 0600
       with_items: "{{ key_files.files }}"
-      tags: [ 'skip' ]
+      tags: [ 'install' ]
 
   roles:
     # generate bastion key pair
     - role: keygen
       keypair_name: "{{ bastion_keypair_name }}"
       keypair_file: "{{ bastion_keypair_file }}"
+      tags: [ 'install' ]
     # generate docker-registry key pair
     - role: keygen
       keypair_name: "{{ docker_registry_keypair_name }}"
       keypair_file: "{{ docker_registry_keypair_file }}"
+      tags: [ 'install' ]
 
     # create a new VPC
     - role: vpc
     # create NAT to give internet access to instances with private IP
     - role: nat
-      tags: [ 'skip' ]
     # create bastion EC2 autoscale group
     - role: bastion_asg
-      tags: [ 'skip' ]
     # generate https certificates for docker registry
     - role: https_certs
+      tags: [ 'install' ]
     # create docker registry
     - role: docker_registry

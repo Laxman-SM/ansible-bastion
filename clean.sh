@@ -17,4 +17,4 @@ do
   shift
 done
 
-ansible-playbook --extra-vars "environ=$e" clean.yaml $vflag
+ansible-playbook --extra-vars "environ=$e" clean.yaml --tags=clean $vflag

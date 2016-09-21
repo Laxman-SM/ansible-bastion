@@ -1,0 +1,38 @@
+---
+# get all bastion LC within current region with name prefix
+- name: find all bastion launch configurations in the region
+  ec2_lc_find:
+    name_regex: "{{ bastion_lc_name + '*' }}"
+    region: "{{ ec2_region }}"
+  register: bastion_lcs
+
+# delete Bastion ASG
+- name: remove autoscale groups for bastion
+  ec2_asg:
+    region: "{{ ec2_region }}"
+    name: "{{ bastion_asg_name }}"
+    launch_config_name: "{{ item.name }}"
+    state: absent
+  with_items: "{{ bastion_lcs.results }}"
+  ignore_errors: true
+
+# delete bastion LC
+- name: remove all launch configurations for bastion
+  ec2_lc:
+    region: "{{ ec2_region }}"
+    name: "{{ item.name }}"
+    instance_type: "{{ item.instance_type }}"
+    state: absent
+  with_items: "{{ bastion_lcs.results }}"
+  ignore_errors: true
+
+# delete security groups
+- name: delete bastion security groups
+  ec2_group:
+    region: "{{ ec2_region }}"
+    name: "{{ bastion_security_group.name }}"
+    description: "{{ bastion_security_group.desc }}"
+    vpc_id: "{{ vpc_facts.vpcs[0].id }}"
+    state: absent
+  when: vpc_facts.vpcs|length > 0
+  ignore_errors: true

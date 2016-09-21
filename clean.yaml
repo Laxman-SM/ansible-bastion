@@ -1,13 +1,15 @@
 ---
-- hosts: localhost
+# cleanup AWS resources for Bastion VPC
+- name:  delete bastion VPC and all resources
+  hosts: localhost
   connection: local
   gather_facts: false
   vars_files:
   - group_vars/vpc.yaml
   - group_vars/bastion.yaml
   - group_vars/docker_registry.yaml
-  tasks:
 
+  pre_tasks:
   # find vpc id
   - name: find vpc id
     ec2_vpc_net_facts:
@@ -16,179 +18,14 @@
         cidr: "{{ vpc_cidr_block }}"
         tag:Name: bastion
     register: vpc_facts
+    tags: [ clean ]
 
-  # delete NAT gateway & Elastic IP
-  - name: get vpc public subnets
-    ec2_vpc_subnet_facts:
-      region: "{{ ec2_region }}"
-      filters:
-        vpc-id: "{{ vpc_facts.vpcs[0].id }}"
-        tag:tier: public
-    register: vpc_subnet_facts
-    when: vpc_facts.vpcs|length > 0
-
-  # get NAT gateway for subnet
-  - name: get NAT gateway id using subnet id
-    shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ vpc_subnet_facts.subnets[0].id }}"
-    register: nat_gateway
-    changed_when: false
-    when: vpc_subnet_facts.subnets is defined
-
-  # var: nat_gateway_id
-  - name: define nat_gateway_id
-    set_fact:
-      nat_gateway_info: "{{ nat_gateway.stdout | from_json }}"
-    when: nat_gateway.stdout is defined
-
-  - name: define nat_gateway_id
-    set_fact:
-      nat_gateway_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayId }}"
-    when:
-      - nat_gateway_info is defined
-      - nat_gateway_info.NatGateways[0] is defined
-
-  # var: nat_network_interface_id
-  - name: define nat_network_interface_id
-    set_fact:
-      nat_network_interface_id: "{{ nat_gateway_info.NatGateways[0].NatGatewayAddresses[0].NetworkInterfaceId }}"
-    when:
-      - nat_gateway_info is defined
-      - nat_gateway_info.NatGateways[0] is defined
-      - nat_gateway_info.NatGateways[0].NatGatewayAddresses[0] is defined
-
-  # delete NAT gateway
-  - name: delete NAT gateways
-    ec2_vpc_nat_gateway:
-      state: absent
-      nat_gateway_id: "{{ nat_gateway_id }}"
-      release_eip: true
-      wait: true
-    when: nat_gateway_id is defined
-    ignore_errors: true
-
-  # release EIP
-  - name: disassociate Elastic IP
-    ec2_eip:
-      state: absent
-      region: "{{ ec2_region }}"
-      device_id: "{{ nat_network_interface_id }}"
-      release_on_disassociation: true
-    when: nat_network_interface_id is defined
-    ignore_errors: true
-
-  # get all bastion LC within current region with name prefix
-  - name: find all bastion launch configurations in the region
-    ec2_lc_find:
-      name_regex: "{{ bastion_lc_name + '*' }}"
-      region: "{{ ec2_region }}"
-    register: bastion_lcs
-
-  # delete Bastion ASG
-  - name: remove autoscale groups for bastion
-    ec2_asg:
-      region: "{{ ec2_region }}"
-      name: "{{ bastion_asg_name }}"
-      launch_config_name: "{{ item.name }}"
-      state: absent
-    with_items: "{{ bastion_lcs.results }}"
-    ignore_errors: true
-
-  # delete bastion LC
-  - name: remove all launch configurations for bastion
-    ec2_lc:
-      region: "{{ ec2_region }}"
-      name: "{{ item.name }}"
-      instance_type: "{{ item.instance_type }}"
-      state: absent
-    with_items: "{{ bastion_lcs.results }}"
-    ignore_errors: true
-
-  # get all LC within current region with name prefix
-  - name: find all docker-registry launch configurations in the region
-    ec2_lc_find:
-      name_regex: "{{ docker_registry_lc_name + '*' }}"
-      region: "{{ ec2_region }}"
-    register: dr_lcs
-
-  # delete Docker Registry ASG
-  - name: remove autoscale groups for docker registry
-    ec2_asg:
-      region: "{{ ec2_region }}"
-      name: "{{ docker_registry_asg_name }}"
-      launch_config_name: "{{ item.name }}"
-      state: absent
-    with_items: "{{ dr_lcs.results }}"
-    ignore_errors: true
-
-  # delete Docker Registry LC
-  - name: remove all launch configurations for docker registry
-    ec2_lc:
-      region: "{{ ec2_region }}"
-      name: "{{ item.name }}"
-      instance_type: "{{ item.instance_type }}"
-      state: absent
-    with_items: "{{ dr_lcs.results }}"
-    ignore_errors: true
-
-  # delete DNS zone
-  - name: get DNS zone records
-    route53:
-      command: get
-      zone: "{{ vpc_dns_zone }}"
-      private_zone: true
-      record: "docker-registry.{{ vpc_dns_zone }}"
-      type: A
-    register: rec
-    ignore_errors: true
-
-  - name: delete DNS records
-    route53:
-      command: delete
-      zone: "{{ vpc_dns_zone }}"
-      private_zone: true
-      record: "{{ rec.set.record }}"
-      ttl: "{{ rec.set.ttl }}"
-      type: "{{ rec.set.type }}"
-      value: "{{ rec.set.value }}"
-    when:
-      - "{{ 'set' in rec and rec.set | length > 0 }}"
-    ignore_errors: true
-
-  - name: delete DNS zone
-    route53_zone:
-      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
-      vpc_region: "{{ ec2_region }}"
-      zone: "{{ vpc_dns_zone }}"
-      state: absent
-    when: vpc_facts.vpcs|length > 0
-    ignore_errors: true
-
-  # delete security groups
-  - name: delete all security groups
-    ec2_group:
-      region: "{{ ec2_region }}"
-      name: "{{ item.name }}"
-      description: "{{ item.description }}"
-      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
-      state: absent
-    with_items:
-      - { name: "{{ bastion_security_group.name }}" , description: "{{ bastion_security_group.desc }}"}
-      - { name: "{{ docker_registry_security_group.name }}" , description: "{{ docker_registry_security_group.desc }}"}
-    when: vpc_facts.vpcs|length > 0
-    ignore_errors: true
-
-  # delete VPC
-  - name: delete VPC
-    ec2_vpc:
-      region: "{{ ec2_region }}"
-      cidr_block: "{{ vpc_cidr_block }}"
-      resource_tags: "{{ vpc_resource_tags }}"
-      vpc_id: "{{ vpc_facts.vpcs[0].id }}"
-      state: absent
-      wait: true
-    register: result
-    when: vpc_facts.vpcs|length > 0
-    until: result|success
-    retries: 10
-    delay: 30
-    ignore_errors: true
+  roles:
+    # docker registry EC2 autoscale group
+    - role: docker_registry
+    # bastion EC2 autoscale group
+    - role: bastion_asg
+    # NAT resourses
+    - role: nat
+    # VPC resources
+    - role: vpc

@@ -42,7 +42,7 @@ AWS credentials can also be stored in $HOME/.aws/credentials file.
 
 # Ansible modules from Ansible 2.0 branch
 
-We use additional Ansible AWS module `ec2_ami_find` from Ansible 2.0, that are not available in Ansible 1.9x.
+We use additional Ansible AWS modules `ec2_lc_find` and `ec2_vpc_nat_gateway` from Ansible 2.2 (dev), that are not available in Ansible 2.1x.
 
 # create new Bastion environment
 
@@ -50,12 +50,19 @@ The **Bastion** environment consists from dedicated VPC with several public subn
 To invoke Ansible playbook with different environment use the following commands:
 
 ```
-./main.sh -e production|develop|custom
+$ ./main.sh -e production|develop|custom
 ```
 
 **Note**: we use 2 Ansible playbooks to discover dynamic inventory, created in first book, in second playbook.
 
 to cleanup previously created environment, run the following code
 ```
-clean.sh -e production|develop|custom
+$ ./clean.sh -e production|develop|custom
+```
+
+to generate SSH config file for Bastion environment only, run the following command
+```
+# set develop (or other environment)
+$ e=develop
+$ ansible-playbook --extra-vars "environ=$e" ssh-config.yaml
 ```
