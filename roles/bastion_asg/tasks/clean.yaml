@@ -32,7 +32,7 @@
     region: "{{ ec2_region }}"
     name: "{{ bastion_security_group.name }}"
     description: "{{ bastion_security_group.desc }}"
-    vpc_id: "{{ vpc_facts.vpcs[0].id }}"
+    vpc_id: "{{ item.id }}"
     state: absent
-  when: vpc_facts.vpcs|length > 0
+  with_items: vpc_facts.vpcs
   ignore_errors: true

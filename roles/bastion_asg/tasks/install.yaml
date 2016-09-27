@@ -23,7 +23,7 @@
 
 - name: save Ubuntu AMI
   set_fact:
-    ubuntu_ami: "{{ find_out.results[0] }}"
+    ubuntu_ami: "{{ find_out.results | first }}"
 
 # create new name for (potentially) updated LC
 - name: create new LC name [prefix + random (1..9999)]
@@ -43,7 +43,7 @@
     bastion_update_lc: false
   when:
     # if there are LC
-    - bastion_lcs.results|length > 0
+    - bastion_lcs.results | length > 0
     # and same image id
     - bastion_lcs.results[0].image_id == ubuntu_ami.ami_id
     # and same instance type
