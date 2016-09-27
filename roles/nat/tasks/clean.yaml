@@ -7,25 +7,25 @@
       vpc-id: "{{ item.id }}"
       tag:tier: public
   register: vpc_subnet_facts
-  with_items: "{{vpc_facts.vpcs}}"
+  with_items: "{{ vpc_facts.vpcs | default({}) }}"
 
 - set_fact:
     vpc_subnet_ids: "{{ item.subnets | map(attribute='id') | list }}"
-  with_items: "{{vpc_subnet_facts.results}}"
+  with_items: "{{ vpc_subnet_facts.results | default({}) }}"
 
 # get NAT gateway for subnet
 - name: get NAT gateway id using subnet id
   shell: "aws ec2 describe-nat-gateways --filter Name=subnet-id,Values={{ item }}"
   register: nat_gateway
   changed_when: false
-  with_items: "{{vpc_subnet_ids}}"
+  with_items: "{{ vpc_subnet_ids | default({}) }}"
 
 # get nat_gateway_list
 - set_fact:
-    nat_gateway_list: "[]"
+    nat_gateway_list: []
 - set_fact:
     nat_gateway_list: "{{nat_gateway_list}} + {{(item.stdout | from_json).NatGateways}}"
-  with_items: nat_gateway.results
+  with_items: "{{ nat_gateway.results | default({}) }}"
 
 - name: get NAT Gateway ids
   set_fact:
@@ -42,6 +42,8 @@
       {%-   endfor %}
       {%- endfor %}
       {{- ids -}}
+  when: nat_gateway_list | length > 0
+  ignore_errors: true
 
 # delete NAT gateway
 - name: delete NAT gateways
